@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 from dataclasses import dataclass
-from io import BytesIO
 from typing import Any
 
 import json
@@ -34,13 +33,80 @@ def build_virtual_try_on_prompt(*, garment_description: str) -> str:
 
 
 def try_get_image_dimensions(image_bytes: bytes) -> tuple[int, int] | None:
-    try:
-        from PIL import Image  # Lazy import; only needed when imageConfig is enabled.
-
-        with Image.open(BytesIO(image_bytes)) as img:
-            return img.size[0], img.size[1]
-    except Exception:
+    if not image_bytes or len(image_bytes) < 24:
         return None
+
+    # PNG: https://www.w3.org/TR/PNG/#5PNG-file-signature
+    if image_bytes.startswith(b"\x89PNG\r\n\x1a\n") and len(image_bytes) >= 24:
+        try:
+            width = int.from_bytes(image_bytes[16:20], "big")
+            height = int.from_bytes(image_bytes[20:24], "big")
+            if width > 0 and height > 0:
+                return width, height
+        except Exception:
+            return None
+
+    # JPEG: parse SOF markers.
+    if image_bytes.startswith(b"\xff\xd8"):
+        i = 2
+        n = len(image_bytes)
+        try:
+            while i + 1 < n:
+                # Find marker.
+                if image_bytes[i] != 0xFF:
+                    i += 1
+                    continue
+                marker = image_bytes[i + 1]
+                i += 2
+
+                # Skip padding.
+                while marker == 0xFF and i < n:
+                    marker = image_bytes[i]
+                    i += 1
+
+                # Standalone markers.
+                if marker in {0xD8, 0xD9}:
+                    continue
+
+                # Start of Scan - image data follows; stop parsing.
+                if marker == 0xDA:
+                    break
+
+                if i + 2 > n:
+                    break
+                seg_len = int.from_bytes(image_bytes[i : i + 2], "big")
+                if seg_len < 2:
+                    break
+
+                sof_markers = {
+                    0xC0,
+                    0xC1,
+                    0xC2,
+                    0xC3,
+                    0xC5,
+                    0xC6,
+                    0xC7,
+                    0xC9,
+                    0xCA,
+                    0xCB,
+                    0xCD,
+                    0xCE,
+                    0xCF,
+                }
+                if marker in sof_markers:
+                    # length(2) + precision(1) + height(2) + width(2)
+                    if i + 7 > n:
+                        break
+                    height = int.from_bytes(image_bytes[i + 3 : i + 5], "big")
+                    width = int.from_bytes(image_bytes[i + 5 : i + 7], "big")
+                    if width > 0 and height > 0:
+                        return width, height
+
+                i += seg_len
+        except Exception:
+            return None
+
+    return None
 
 
 def choose_supported_aspect_ratio(width: int, height: int) -> str | None:
@@ -89,6 +155,25 @@ def generate_virtual_try_on(
     use_image_config: bool,
     timeout_seconds: int,
 ) -> GeminiImageResult:
+    return generate_image(
+        api_key=api_key,
+        model=model,
+        prompt_text=prompt_text,
+        images=[(user_mime_type, user_bytes), (garment_mime_type, garment_bytes)],
+        use_image_config=use_image_config,
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def generate_image(
+    *,
+    api_key: str,
+    model: str,
+    prompt_text: str,
+    images: list[tuple[str, bytes]],
+    use_image_config: bool,
+    timeout_seconds: int,
+) -> GeminiImageResult:
     model_name = normalize_gemini_model_name(model)
     endpoint = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent"
 
@@ -97,8 +182,8 @@ def generate_virtual_try_on(
         "responseModalities": ["TEXT", "IMAGE"],
     }
 
-    if use_image_config:
-        dims = try_get_image_dimensions(user_bytes)
+    if use_image_config and images:
+        dims = try_get_image_dimensions(images[0][1])
         if dims:
             width, height = dims
             aspect_ratio = choose_supported_aspect_ratio(width, height)
@@ -109,27 +194,19 @@ def generate_virtual_try_on(
                     **({"imageSize": image_size} if image_size else {}),
                 }
 
-    payload = {
-        "contents": [
+    parts_in: list[dict[str, Any]] = [{"text": prompt_text}]
+    for mime_type, data in images:
+        parts_in.append(
             {
-                "role": "user",
-                "parts": [
-                    {"text": prompt_text},
-                    {
-                        "inlineData": {
-                            "mimeType": user_mime_type,
-                            "data": base64.b64encode(user_bytes).decode("utf-8"),
-                        }
-                    },
-                    {
-                        "inlineData": {
-                            "mimeType": garment_mime_type,
-                            "data": base64.b64encode(garment_bytes).decode("utf-8"),
-                        }
-                    },
-                ],
+                "inlineData": {
+                    "mimeType": mime_type,
+                    "data": base64.b64encode(data).decode("utf-8"),
+                }
             }
-        ],
+        )
+
+    payload = {
+        "contents": [{"role": "user", "parts": parts_in}],
         "generationConfig": generation_config,
     }
 
@@ -165,7 +242,10 @@ def generate_virtual_try_on(
             f"Gemini API returned non-JSON response (Content-Type: {content_type})"
         ) from exc
 
-    parts = ((((result.get("candidates") or [{}])[0]).get("content") or {}).get("parts") or [])
+    parts = (
+        (((result.get("candidates") or [{}])[0]).get("content") or {}).get("parts")
+        or []
+    )
 
     for part in parts:
         inline = part.get("inline_data") or part.get("inlineData")
