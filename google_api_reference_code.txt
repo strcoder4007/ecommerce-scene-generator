@@ -1,0 +1,143 @@
+@app.route("/vto-garment-image")
+def vto_garment_image():
+    """
+    Serve the local garment image used for VTO preview (temporary fallback).
+    Controlled by VTO_GARMENT_IMAGE_PATH (defaults to ./garment.png).
+    """
+    garment_override = os.environ.get("VTO_GARMENT_IMAGE_PATH", "garment.png")
+    garment_path = Path(garment_override)
+    if not garment_path.is_absolute():
+        garment_path = Path(__file__).resolve().parent / garment_path
+
+    if not garment_path.exists() or not garment_path.is_file():
+        return "Garment image not found", 404
+
+    return send_from_directory(garment_path.parent, garment_path.name, max_age=86400)
+
+
+@app.route("/api/virtual-try-on", methods=["POST"])
+def virtual_try_on():
+    """
+    Virtual try-on using Gemini native image generation.
+    Expects multipart/form-data:
+      - user_photo: the user's uploaded photo
+      - optional garment_* fields to improve prompting
+
+    Note: the garment image is currently loaded from a local file (see
+    VTO_GARMENT_IMAGE_PATH env var), as a temporary fallback.
+    """
+    api_key = get_gemini_api_key()
+    if not api_key:
+        return jsonify({
+            "error": "Missing API key. Set GEMINI_API_KEY (or GOOGLE_API_KEY) in your environment."
+        }), 500
+
+    user_photo = request.files.get("user_photo")
+    if not user_photo:
+        return jsonify({"error": "Missing required file: user_photo"}), 400
+
+    user_mime_type = (user_photo.mimetype or "image/jpeg").split(";")[0].strip()
+    user_bytes = user_photo.read()
+    if not user_bytes:
+        return jsonify({"error": "Uploaded user_photo is empty"}), 400
+
+    # Use a local garment image override (temporary fallback while remote blobs are missing).
+    # Defaults to ./garment.png (repo root).
+    garment_override = os.environ.get("VTO_GARMENT_IMAGE_PATH", "garment.png")
+    garment_path = Path(garment_override)
+    if not garment_path.is_absolute():
+        garment_path = Path(__file__).resolve().parent / garment_path
+
+    try:
+        garment_mime_type, garment_b64 = read_local_image_as_base64(garment_path)
+    except Exception as e:
+        return jsonify({"error": f"Failed to load local garment image ({garment_path}): {e}"}), 500
+
+    # Build prompt
+    garment_name = (request.form.get("garment_name") or "").strip()
+    garment_category = (request.form.get("garment_category") or "").strip()
+    garment_gender = (request.form.get("garment_gender") or "").strip()
+    garment_brand = (request.form.get("garment_brand") or "").strip()
+    garment_color = (request.form.get("garment_color") or "").strip()
+    garment_description_parts = [p for p in [garment_brand, garment_name] if p]
+    garment_description = " ".join(garment_description_parts).strip() or "Garment from the GARMENT PHOTO"
+    garment_meta = ", ".join([p for p in [garment_category, garment_color, garment_gender] if p]).strip()
+    if garment_meta:
+        garment_description = f"{garment_description} ({garment_meta})"
+
+    prompt_text = build_virtual_try_on_prompt(garment_description=garment_description)
+
+    model = os.environ.get("GEMINI_VTO_MODEL", "gemini-3-pro-image-preview")
+    model_name = normalize_gemini_model_name(model)
+    endpoint = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent"
+
+    # Match output framing to the input person photo, without requesting 4K.
+    dims = try_get_image_dimensions(user_bytes, user_mime_type)
+    aspect_ratio = None
+    image_size = None
+    if dims:
+        w, h = dims
+        aspect_ratio = choose_supported_aspect_ratio(w, h)
+        image_size = choose_image_size_for_input(w, h)
+
+    generation_config: dict = {
+        "temperature": 0.2,
+        "responseModalities": ["TEXT", "IMAGE"],
+    }
+    if aspect_ratio or image_size:
+        generation_config["imageConfig"] = {
+            **({"aspectRatio": aspect_ratio} if aspect_ratio else {}),
+            **({"imageSize": image_size} if image_size else {}),
+        }
+
+    payload = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {"text": prompt_text},
+                    {"inlineData": {"mimeType": user_mime_type, "data": base64.b64encode(user_bytes).decode("utf-8")}},
+                    {"inlineData": {"mimeType": garment_mime_type, "data": garment_b64}},
+                ],
+            }
+        ],
+        "generationConfig": generation_config,
+    }
+
+    try:
+        response = requests.post(
+            endpoint,
+            params={"key": api_key},
+            json=payload,
+            timeout=120,
+        )
+    except Exception as e:
+        return jsonify({"error": f"Gemini API request failed: {e}"}), 502
+
+    if response.status_code != 200:
+        # Avoid dumping huge payloads; show a small excerpt.
+        body_excerpt = response.text[:500] if response.text else ""
+        return jsonify({
+            "error": f"Gemini API error ({response.status_code}): {body_excerpt}"
+        }), 502
+
+    try:
+        result = response.json()
+    except Exception:
+        return jsonify({"error": "Gemini API returned non-JSON response"}), 502
+
+    parts = (
+        (((result.get("candidates") or [{}])[0]).get("content") or {}).get("parts")
+        or []
+    )
+
+    for part in parts:
+        inline = part.get("inline_data") or part.get("inlineData")
+        if inline and inline.get("data"):
+            mime_type = inline.get("mime_type") or inline.get("mimeType") or "image/png"
+            return jsonify({
+                "mime_type": mime_type,
+                "image_base64": inline["data"],
+            })
+
+    return jsonify({"error": "Gemini API did not return an image"}), 502
