@@ -21,6 +21,8 @@ type GenerateLookResponse =
     }
   | ApiError;
 
+type PillOption = { value: string; label: string };
+
 function getApiBaseUrl(): string {
   return (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(
     /\/+$/,
@@ -40,6 +42,104 @@ function parseTags(raw: string): string[] {
     .split(/[;,]/g)
     .map((p) => p.trim())
     .filter(Boolean);
+}
+
+function InfoButton({ text }: { text: string }) {
+  return (
+    <button type="button" className="infoButton" aria-label={text}>
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 20 20"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <path
+          d="M10 18.25C5.44467 18.25 1.75 14.5553 1.75 10C1.75 5.44467 5.44467 1.75 10 1.75C14.5553 1.75 18.25 5.44467 18.25 10C18.25 14.5553 14.5553 18.25 10 18.25Z"
+          stroke="currentColor"
+          strokeWidth="1.6"
+        />
+        <path
+          d="M10 8.7V14.1"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+        />
+        <path
+          d="M10 6.35H10.01"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+        />
+      </svg>
+      <span className="tooltip" role="tooltip">
+        {text}
+      </span>
+    </button>
+  );
+}
+
+function FieldLabel({
+  htmlFor,
+  label,
+  info,
+}: {
+  htmlFor?: string;
+  label: string;
+  info: string;
+}) {
+  return (
+    <div className="labelRow">
+      <label htmlFor={htmlFor}>{label}</label>
+      <InfoButton text={info} />
+    </div>
+  );
+}
+
+function PillRadioGroup({
+  name,
+  value,
+  options,
+  onChange,
+}: {
+  name: string;
+  value: string;
+  options: PillOption[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="pillGroup" role="radiogroup" aria-label={name}>
+      {options.map((opt) => (
+        <label key={opt.value} className="pill">
+          <input
+            type="radio"
+            name={name}
+            value={opt.value}
+            checked={value === opt.value}
+            onChange={() => onChange(opt.value)}
+          />
+          <span>{opt.label}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function combinePresetAndCustom({
+  presetText,
+  customText,
+  joiner = ", ",
+}: {
+  presetText: string;
+  customText: string;
+  joiner?: string;
+}): string {
+  const p = presetText.trim();
+  const c = customText.trim();
+  if (!p) return c;
+  if (!c) return p;
+  return `${p}${joiner}${c}`;
 }
 
 export default function App() {
@@ -84,13 +184,16 @@ export default function App() {
   const [selectedBackgroundId, setSelectedBackgroundId] = useState<string>("");
   const [selectedModelId, setSelectedModelId] = useState<string>("");
 
-  const [occasion, setOccasion] = useState("");
+  const [occasionPreset, setOccasionPreset] = useState<string>("");
+  const [occasionDetails, setOccasionDetails] = useState<string>("");
   const [colorScheme, setColorScheme] = useState("");
-  const [printStyle, setPrintStyle] = useState("");
-  const [backgroundTheme, setBackgroundTheme] = useState("");
-  const [modelEthnicity, setModelEthnicity] = useState("");
+  const [backgroundThemePreset, setBackgroundThemePreset] = useState<string>("");
+  const [backgroundThemeDetails, setBackgroundThemeDetails] = useState<string>("");
+  const [modelPreset, setModelPreset] = useState<string>("");
+  const [modelDetails, setModelDetails] = useState<string>("");
   const [modelStylingNotes, setModelStylingNotes] = useState("");
-  const [styleKeywords, setStyleKeywords] = useState("");
+  const [stylePreset, setStylePreset] = useState<string>("");
+  const [styleKeywordsDetails, setStyleKeywordsDetails] = useState<string>("");
   const [accessories, setAccessories] = useState("");
   const [includeDebug, setIncludeDebug] = useState(false);
 
@@ -118,13 +221,57 @@ export default function App() {
     if (selectedBackgroundId) form.append("background_id", selectedBackgroundId);
     if (selectedModelId) form.append("model_id", selectedModelId);
 
-    if (occasion.trim()) form.append("occasion", occasion.trim());
+    const occasionFinal =
+      occasionPreset === "custom"
+        ? occasionDetails.trim()
+        : combinePresetAndCustom({
+            presetText: occasionPreset,
+            customText: occasionDetails,
+            joiner: ", ",
+          });
     if (colorScheme.trim()) form.append("color_scheme", colorScheme.trim());
-    if (printStyle.trim()) form.append("print_style", printStyle.trim());
-    if (backgroundTheme.trim()) form.append("background_theme", backgroundTheme.trim());
-    if (modelEthnicity.trim()) form.append("model_ethnicity", modelEthnicity.trim());
+    const stylePresetKeywords: Record<string, string> = {
+      minimal: "minimal, clean, modern",
+      streetwear: "streetwear, edgy, urban",
+      luxe: "luxury, premium, editorial",
+      boho: "boho, relaxed, earthy",
+      vintage: "vintage, retro",
+      sporty: "sporty, athleisure",
+      romantic: "romantic, feminine",
+      edgy: "edgy, bold, high-contrast",
+    };
+    const stylePresetText =
+      stylePreset && stylePreset !== "custom" ? stylePresetKeywords[stylePreset] ?? stylePreset : "";
+    const styleKeywordsFinal =
+      stylePreset === "custom"
+        ? styleKeywordsDetails.trim()
+        : combinePresetAndCustom({
+            presetText: stylePresetText,
+            customText: styleKeywordsDetails,
+            joiner: ", ",
+          });
+    const backgroundThemeFinal =
+      backgroundThemePreset === "custom"
+        ? backgroundThemeDetails.trim()
+        : combinePresetAndCustom({
+            presetText: backgroundThemePreset,
+            customText: backgroundThemeDetails,
+            joiner: ", ",
+          });
+    const modelEthnicityFinal =
+      modelPreset === "custom"
+        ? modelDetails.trim()
+        : combinePresetAndCustom({
+            presetText: modelPreset,
+            customText: modelDetails,
+            joiner: ", ",
+          });
+
+    if (occasionFinal) form.append("occasion", occasionFinal);
+    if (backgroundThemeFinal) form.append("background_theme", backgroundThemeFinal);
+    if (modelEthnicityFinal) form.append("model_ethnicity", modelEthnicityFinal);
     if (modelStylingNotes.trim()) form.append("model_styling_notes", modelStylingNotes.trim());
-    if (styleKeywords.trim()) form.append("style_keywords", styleKeywords.trim());
+    if (styleKeywordsFinal) form.append("style_keywords", styleKeywordsFinal);
     if (accessories.trim()) form.append("accessories", accessories.trim());
     if (includeDebug) form.append("include_debug", "true");
 
@@ -238,26 +385,31 @@ export default function App() {
     <div className="container">
       <div className="header">
         <div>
-          <h1 className="title">Ecommerce Scene Generator</h1>
+          <h1 className="title titleLarge">Ecommerce Scene Generator</h1>
           <p className="subtitle">
             Upload a garment image → auto-pick (or invent) model/background → generate a photorealistic look.
           </p>
         </div>
-        <div className="muted">API: {apiBaseUrl}</div>
+        <div className="badge">
+          <span>API</span>
+          <code>{apiBaseUrl}</code>
+        </div>
       </div>
 
-      <div className="actions" style={{ marginBottom: 16 }}>
+      <div className="tabRow">
         <button
           type="button"
           onClick={() => setActiveTab("generate")}
-          disabled={activeTab === "generate"}
+          className={`tabButton ${activeTab === "generate" ? "tabButtonActive" : ""}`}
+          aria-pressed={activeTab === "generate"}
         >
           Generate
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("assets")}
-          disabled={activeTab === "assets"}
+          className={`tabButton ${activeTab === "assets" ? "tabButtonActive" : ""}`}
+          aria-pressed={activeTab === "assets"}
         >
           Assets
         </button>
@@ -271,7 +423,11 @@ export default function App() {
           <div className="card">
             <form onSubmit={onGenerateLook}>
               <div>
-                <label htmlFor="garmentPhoto">Garment photo</label>
+                <FieldLabel
+                  htmlFor="garmentPhoto"
+                  label="Garment photo"
+                  info="Upload the garment image you want to place on a model. The generator will preserve the garment silhouette and create a photorealistic ecommerce scene around it."
+                />
                 <input
                   id="garmentPhoto"
                   type="file"
@@ -282,78 +438,56 @@ export default function App() {
 
               <div style={{ height: 12 }} />
 
+              <div>
+                <FieldLabel
+                  label="Occasion (optional)"
+                  info="Sets the vibe for styling and scene (lighting, accessories, background mood). Pick a preset and optionally add extra detail (e.g., “sunset beach”, “nightclub”, “wedding guest”)."
+                />
+                <PillRadioGroup
+                  name="occasion"
+                  value={occasionPreset}
+                  onChange={setOccasionPreset}
+                  options={[
+                    { value: "", label: "Auto" },
+                    { value: "beachwear", label: "Beachwear" },
+                    { value: "party wear", label: "Party wear" },
+                    { value: "evening", label: "Evening" },
+                    { value: "casual", label: "Casual" },
+                    { value: "workwear", label: "Workwear" },
+                    { value: "wedding guest", label: "Wedding" },
+                    { value: "athleisure", label: "Athleisure" },
+                    { value: "custom", label: "Custom" },
+                  ]}
+                />
+                <div style={{ height: 10 }} />
+                <input
+                  type="text"
+                  value={occasionDetails}
+                  onChange={(e) => setOccasionDetails(e.target.value)}
+                  placeholder="Optional: add details or type a custom occasion"
+                />
+              </div>
+
+              <div style={{ height: 12 }} />
+
               <div className="row">
                 <div>
-                  <label>Occasion (optional)</label>
-                  <input
-                    type="text"
-                    value={occasion}
-                    onChange={(e) => setOccasion(e.target.value)}
-                    placeholder="e.g. beachwear, party, evening"
+                  <FieldLabel
+                    label="Color scheme (optional)"
+                    info="The overall color palette you want the model + background to lean into. This helps the generator choose complementary lighting and scene colors (e.g., “pastel”, “neutral”, “red & white”, “monochrome”)."
                   />
-                </div>
-                <div>
-                  <label>Color scheme (optional)</label>
                   <input
                     type="text"
                     value={colorScheme}
                     onChange={(e) => setColorScheme(e.target.value)}
-                    placeholder="e.g. red & white, pastel, neutral"
-                  />
-                </div>
-              </div>
-
-              <div style={{ height: 12 }} />
-
-              <div className="row">
-                <div>
-                  <label>Print style (optional)</label>
-                  <input
-                    type="text"
-                    value={printStyle}
-                    onChange={(e) => setPrintStyle(e.target.value)}
-                    placeholder="e.g. floral, stripes, solid"
+                    placeholder="e.g. red & white, pastel, neutral, monochrome"
                   />
                 </div>
                 <div>
-                  <label>Style keywords (optional)</label>
-                  <input
-                    type="text"
-                    value={styleKeywords}
-                    onChange={(e) => setStyleKeywords(e.target.value)}
-                    placeholder="comma separated, e.g. minimal, chic, summer"
+                  <FieldLabel
+                    label="Accessories (optional)"
+                    info="Optional add-ons to make the scene feel complete (e.g., sunglasses, tote bag, heels). Keep it realistic and not too many items."
                   />
-                </div>
-              </div>
-
-              <div style={{ height: 12 }} />
-
-              <div className="row">
-                <div>
-                  <label>Background theme (optional)</label>
-                  <input
-                    type="text"
-                    value={backgroundTheme}
-                    onChange={(e) => setBackgroundTheme(e.target.value)}
-                    placeholder="e.g. beach, nightclub, garden"
-                  />
-                </div>
-                <div>
-                  <label>Model ethnicity (optional)</label>
-                  <input
-                    type="text"
-                    value={modelEthnicity}
-                    onChange={(e) => setModelEthnicity(e.target.value)}
-                    placeholder="e.g. Indian, Russian"
-                  />
-                </div>
-              </div>
-
-              <div style={{ height: 12 }} />
-
-              <div className="row">
-                <div>
-                  <label>Accessories (optional)</label>
                   <input
                     type="text"
                     value={accessories}
@@ -361,8 +495,218 @@ export default function App() {
                     placeholder="comma separated, e.g. straw hat, sandals"
                   />
                 </div>
+              </div>
+
+              <div style={{ height: 12 }} />
+
+              <div>
+                <FieldLabel
+                  label="Style keywords (optional)"
+                  info="A few words describing the aesthetic. This influences pose, lighting, props, and overall styling (e.g., minimal, luxury, streetwear). Choose a direction and optionally add extra keywords."
+                />
+                <PillRadioGroup
+                  name="styleKeywords"
+                  value={stylePreset}
+                  onChange={setStylePreset}
+                  options={[
+                    { value: "", label: "Auto" },
+                    { value: "minimal", label: "Minimal" },
+                    { value: "streetwear", label: "Streetwear" },
+                    { value: "luxe", label: "Luxury" },
+                    { value: "boho", label: "Boho" },
+                    { value: "vintage", label: "Vintage" },
+                    { value: "sporty", label: "Sporty" },
+                    { value: "romantic", label: "Romantic" },
+                    { value: "edgy", label: "Edgy" },
+                    { value: "custom", label: "Custom" },
+                  ]}
+                />
+                <div style={{ height: 10 }} />
+                <input
+                  type="text"
+                  value={styleKeywordsDetails}
+                  onChange={(e) => setStyleKeywordsDetails(e.target.value)}
+                  placeholder="Optional: add keywords (comma separated)"
+                />
+              </div>
+
+              <div style={{ height: 12 }} />
+
+              <div className="divider" />
+
+              <div style={{ height: 12 }} />
+
+              <div>
+                <FieldLabel
+                  label="Background theme (optional)"
+                  info="Describes the environment you want (e.g., studio, beach, rooftop, garden). Pick a preset and optionally add extra detail. If you select an uploaded background thumbnail below, that image will be used as the scene reference."
+                />
+                <PillRadioGroup
+                  name="backgroundTheme"
+                  value={backgroundThemePreset}
+                  onChange={setBackgroundThemePreset}
+                  options={[
+                    { value: "", label: "Auto" },
+                    { value: "studio", label: "Studio" },
+                    { value: "beach", label: "Beach" },
+                    { value: "city street", label: "City" },
+                    { value: "garden", label: "Garden" },
+                    { value: "minimal", label: "Minimal" },
+                    { value: "luxury", label: "Luxury" },
+                    { value: "nightclub", label: "Nightlife" },
+                    { value: "custom", label: "Custom" },
+                  ]}
+                />
+                <div style={{ height: 10 }} />
+                <input
+                  type="text"
+                  value={backgroundThemeDetails}
+                  onChange={(e) => setBackgroundThemeDetails(e.target.value)}
+                  placeholder="Optional: add details (lighting, location, props)"
+                />
+              </div>
+
+              <div style={{ height: 12 }} />
+
+              <div>
+                <FieldLabel
+                  label="Background image (optional)"
+                  info="If you have uploaded backgrounds, click a thumbnail to force a specific scene. Leave on Auto to let the generator invent a matching background."
+                />
+                {backgrounds.length > 0 ? (
+                  <div className="thumbStrip">
+                    <button
+                      type="button"
+                      className={`thumb ${!selectedBackgroundId ? "thumbSelected" : ""}`}
+                      onClick={() => setSelectedBackgroundId("")}
+                      aria-pressed={!selectedBackgroundId}
+                      title="Auto background"
+                    >
+                      <div className="thumbPlaceholder">Auto</div>
+                      <div className="thumbTitle">Auto</div>
+                      <div className="thumbSubtitle">Invent / pick best</div>
+                    </button>
+                    {backgrounds.map((b) => {
+                      const isSelected = selectedBackgroundId === b.id;
+                      return (
+                        <button
+                          key={b.id}
+                          type="button"
+                          className={`thumb ${isSelected ? "thumbSelected" : ""}`}
+                          onClick={() => setSelectedBackgroundId(b.id)}
+                          aria-pressed={isSelected}
+                          title={b.title}
+                        >
+                          <img src={joinUrl(apiBaseUrl, b.image_url)} alt={b.title} loading="lazy" />
+                          <div className="thumbTitle">{b.title}</div>
+                          <div className="thumbSubtitle">{b.theme || "Background"}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="muted">No uploaded backgrounds detected — the generator will invent one.</div>
+                )}
+              </div>
+
+              <div style={{ height: 12 }} />
+
+              <div className="divider" />
+
+              <div style={{ height: 12 }} />
+
+              <div>
+                <FieldLabel
+                  label="Model (optional)"
+                  info="Use this to bias the generated model (ethnicity / vibe) when you are not selecting a specific uploaded model. Pick a preset and/or add your own description."
+                />
+                <PillRadioGroup
+                  name="modelPreference"
+                  value={modelPreset}
+                  onChange={setModelPreset}
+                  options={[
+                    { value: "", label: "Auto" },
+                    { value: "South Asian", label: "South Asian" },
+                    { value: "East Asian", label: "East Asian" },
+                    { value: "Black", label: "Black" },
+                    { value: "White / European", label: "White / European" },
+                    { value: "Middle Eastern", label: "Middle Eastern" },
+                    { value: "Latina", label: "Latina" },
+                    { value: "custom", label: "Custom" },
+                  ]}
+                />
+                <div style={{ height: 10 }} />
+                <input
+                  type="text"
+                  value={modelDetails}
+                  onChange={(e) => setModelDetails(e.target.value)}
+                  placeholder="Optional: add model description (ethnicity, vibe, etc.)"
+                />
+              </div>
+
+              <div style={{ height: 12 }} />
+
+              <div>
+                <FieldLabel
+                  label="Model image (optional)"
+                  info="If you have uploaded model references, click a thumbnail to use that exact identity/face/pose. Leave Auto to generate a suitable model."
+                />
+                {models.length > 0 ? (
+                  <div className="thumbStrip">
+                    <button
+                      type="button"
+                      className={`thumb ${!selectedModelId ? "thumbSelected" : ""}`}
+                      onClick={() => setSelectedModelId("")}
+                      aria-pressed={!selectedModelId}
+                      title="Auto model"
+                    >
+                      <div className="thumbPlaceholder">Auto</div>
+                      <div className="thumbTitle">Auto</div>
+                      <div className="thumbSubtitle">Invent / pick best</div>
+                    </button>
+                    {models.map((m) => {
+                      const isSelected = selectedModelId === m.id;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          className={`thumb ${isSelected ? "thumbSelected" : ""}`}
+                          onClick={() => setSelectedModelId(m.id)}
+                          aria-pressed={isSelected}
+                          title={m.title}
+                        >
+                          <img src={joinUrl(apiBaseUrl, m.image_url)} alt={m.title} loading="lazy" />
+                          <div className="thumbTitle">{m.title}</div>
+                          <div className="thumbSubtitle">{m.ethnicity || "Model"}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="muted">No uploaded models detected — the generator will invent one.</div>
+                )}
+              </div>
+
+              <div style={{ height: 12 }} />
+
+              <div className="row">
                 <div>
-                  <label>Debug (optional)</label>
+                  <FieldLabel
+                    label="Model styling notes (optional)"
+                    info="Extra guidance for hair/makeup/jewelry and overall styling. Use short, clear notes like “natural makeup, minimal jewelry, hair up”."
+                  />
+                  <input
+                    type="text"
+                    value={modelStylingNotes}
+                    onChange={(e) => setModelStylingNotes(e.target.value)}
+                    placeholder="e.g. minimal jewelry, natural makeup, hair up"
+                  />
+                </div>
+                <div>
+                  <FieldLabel
+                    label="Debug (optional)"
+                    info="When enabled, the backend returns internal prompt/plan details to help iterate on results."
+                  />
                   <select
                     value={includeDebug ? "yes" : "no"}
                     onChange={(e) => setIncludeDebug(e.target.value === "yes")}
@@ -373,64 +717,16 @@ export default function App() {
                 </div>
               </div>
 
-              <div style={{ height: 12 }} />
-
-              <div className="row">
-                <div>
-                  <label>Background (optional)</label>
-                  <select
-                    value={selectedBackgroundId}
-                    onChange={(e) => setSelectedBackgroundId(e.target.value)}
-                  >
-                    <option value="">Auto</option>
-                    {backgrounds.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.title}
-                        {b.theme ? ` (${b.theme})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label>Model (optional)</label>
-                  <select
-                    value={selectedModelId}
-                    onChange={(e) => setSelectedModelId(e.target.value)}
-                  >
-                    <option value="">Auto</option>
-                    {models.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.title}
-                        {m.ethnicity ? ` (${m.ethnicity})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {backgrounds.length === 0 || models.length === 0 ? (
-                <div className="muted" style={{ marginTop: 10 }}>
-                  No uploaded assets detected — generation will invent a matching model/background from the garment.
-                </div>
-              ) : null}
-
-              <div style={{ height: 12 }} />
-
-              <div>
-                <label>Model styling notes (optional)</label>
-                <input
-                  type="text"
-                  value={modelStylingNotes}
-                  onChange={(e) => setModelStylingNotes(e.target.value)}
-                  placeholder="e.g. minimal jewelry, natural makeup, hair up"
-                />
-              </div>
-
               <div className="actions">
-                <button type="submit" disabled={isGenerating}>
+                <button type="submit" className="btnPrimary" disabled={isGenerating}>
                   {isGenerating ? "Generating..." : "Generate look"}
                 </button>
-                <button type="button" onClick={() => void refreshAssets()} disabled={isGenerating}>
+                <button
+                  type="button"
+                  className="btnSecondary"
+                  onClick={() => void refreshAssets()}
+                  disabled={isGenerating}
+                >
                   Refresh assets
                 </button>
               </div>
@@ -445,11 +741,10 @@ export default function App() {
                     <img src={garmentPreviewUrl} alt="Garment preview" />
                   </div>
                   <div>
-                    <label>Selected assets (preview)</label>
+                    <label>Selection preview</label>
                     <div className="muted">
-                      {selectedBackgroundId || selectedModelId
-                        ? "Using selected background/model."
-                        : "Auto-picking background/model."}
+                      {(selectedBackgroundId ? "Using selected background." : "Auto background.")}{" "}
+                      {(selectedModelId ? "Using selected model." : "Auto model.")}
                     </div>
                   </div>
                 </div>
@@ -476,7 +771,10 @@ export default function App() {
           </div>
 
           <div className="card result">
-            <label>Generated result</label>
+            <FieldLabel
+              label="Generated result"
+              info="Your generated ecommerce scene will appear here. For best results, start with Auto settings and only lock in a background/model when you need consistency."
+            />
             {resultDataUrl ? (
               <img src={resultDataUrl} alt="Generated look" />
             ) : (
@@ -492,27 +790,39 @@ export default function App() {
             </h2>
             <form onSubmit={uploadBackground}>
               <div>
-                <label>Image</label>
+                <FieldLabel
+                  label="Image"
+                  info="Upload a background reference image (e.g., studio wall, beach, garden). You can select it from the Generate tab via thumbnails."
+                />
                 <input type="file" accept="image/*" onChange={(e) => setBgFile(e.target.files?.[0] ?? null)} />
               </div>
               <div style={{ height: 12 }} />
               <div className="row">
                 <div>
-                  <label>Title (optional)</label>
+                  <FieldLabel
+                    label="Title (optional)"
+                    info="A short name to recognize this background."
+                  />
                   <input value={bgTitle} onChange={(e) => setBgTitle(e.target.value)} type="text" />
                 </div>
                 <div>
-                  <label>Theme (recommended)</label>
+                  <FieldLabel
+                    label="Theme (recommended)"
+                    info="A theme tag (e.g., beach, party, studio). The generator can use this when auto-planning a look."
+                  />
                   <input value={bgTheme} onChange={(e) => setBgTheme(e.target.value)} type="text" placeholder="beach, party, forest..." />
                 </div>
               </div>
               <div style={{ height: 12 }} />
               <div>
-                <label>Tags (optional)</label>
+                <FieldLabel
+                  label="Tags (optional)"
+                  info="Extra tags to help categorize assets. Use commas."
+                />
                 <input value={bgTags} onChange={(e) => setBgTags(e.target.value)} type="text" placeholder="comma separated" />
               </div>
               <div className="actions">
-                <button type="submit" disabled={bgUploading}>
+                <button type="submit" className="btnPrimary" disabled={bgUploading}>
                   {bgUploading ? "Uploading..." : "Upload background"}
                 </button>
               </div>
@@ -526,27 +836,39 @@ export default function App() {
             </h2>
             <form onSubmit={uploadModel}>
               <div>
-                <label>Image</label>
+                <FieldLabel
+                  label="Image"
+                  info="Upload a model reference image to keep the same identity/face/pose across generations."
+                />
                 <input type="file" accept="image/*" onChange={(e) => setModelFile(e.target.files?.[0] ?? null)} />
               </div>
               <div style={{ height: 12 }} />
               <div className="row">
                 <div>
-                  <label>Title (optional)</label>
+                  <FieldLabel
+                    label="Title (optional)"
+                    info="A short name to recognize this model."
+                  />
                   <input value={modelTitle} onChange={(e) => setModelTitle(e.target.value)} type="text" />
                 </div>
                 <div>
-                  <label>Ethnicity (recommended)</label>
+                  <FieldLabel
+                    label="Ethnicity (recommended)"
+                    info="Helps the generator auto-pick diversity when no explicit model is selected."
+                  />
                   <input value={modelAssetEthnicity} onChange={(e) => setModelAssetEthnicity(e.target.value)} type="text" placeholder="Indian, Russian..." />
                 </div>
               </div>
               <div style={{ height: 12 }} />
               <div>
-                <label>Tags (optional)</label>
+                <FieldLabel
+                  label="Tags (optional)"
+                  info="Extra tags to help categorize assets. Use commas."
+                />
                 <input value={modelTags} onChange={(e) => setModelTags(e.target.value)} type="text" placeholder="comma separated" />
               </div>
               <div className="actions">
-                <button type="submit" disabled={modelUploading}>
+                <button type="submit" className="btnPrimary" disabled={modelUploading}>
                   {modelUploading ? "Uploading..." : "Upload model"}
                 </button>
               </div>
@@ -564,7 +886,7 @@ export default function App() {
                   Backgrounds: {backgrounds.length} · Models: {models.length}
                 </div>
               </div>
-              <button type="button" onClick={() => void refreshAssets()}>
+              <button type="button" className="btnSecondary" onClick={() => void refreshAssets()}>
                 Refresh
               </button>
             </div>
