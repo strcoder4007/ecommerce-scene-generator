@@ -23,6 +23,14 @@ type GenerateLookResponse =
 
 type PillOption = { value: string; label: string };
 
+function mimeToExtension(mimeType: string | null): string {
+  const mt = (mimeType || "").toLowerCase().trim();
+  if (mt.includes("png")) return "png";
+  if (mt.includes("webp")) return "webp";
+  if (mt.includes("jpeg") || mt.includes("jpg")) return "jpg";
+  return "png";
+}
+
 function getApiBaseUrl(): string {
   return (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(
     /\/+$/,
@@ -200,6 +208,7 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [resultDataUrl, setResultDataUrl] = useState<string | null>(null);
+  const [resultMimeType, setResultMimeType] = useState<string | null>(null);
   const [chosenSummary, setChosenSummary] = useState<any>(null);
   const [debugSummary, setDebugSummary] = useState<any>(null);
 
@@ -207,6 +216,7 @@ export default function App() {
     e.preventDefault();
     setGenerateError(null);
     setResultDataUrl(null);
+    setResultMimeType(null);
     setChosenSummary(null);
     setDebugSummary(null);
 
@@ -292,6 +302,7 @@ export default function App() {
       }
       setChosenSummary(data.chosen);
       setDebugSummary(data.debug ?? null);
+      setResultMimeType(data.mime_type);
       setResultDataUrl(`data:${data.mime_type};base64,${data.image_base64}`);
     } catch (err: any) {
       setGenerateError(err?.message || String(err));
@@ -385,7 +396,7 @@ export default function App() {
     <div className="container">
       <div className="header">
         <div>
-          <h1 className="title titleLarge">Ecommerce Scene Generator</h1>
+          <h1 className="title titleLarge">Fashion image Gen</h1>
           <p className="subtitle">
             Upload a garment image → auto-pick (or invent) model/background → generate a photorealistic look.
           </p>
@@ -397,22 +408,26 @@ export default function App() {
       </div>
 
       <div className="tabRow">
-        <button
-          type="button"
-          onClick={() => setActiveTab("generate")}
-          className={`tabButton ${activeTab === "generate" ? "tabButtonActive" : ""}`}
-          aria-pressed={activeTab === "generate"}
-        >
-          Generate
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("assets")}
-          className={`tabButton ${activeTab === "assets" ? "tabButtonActive" : ""}`}
-          aria-pressed={activeTab === "assets"}
-        >
-          Assets
-        </button>
+        <div className="tabGroup" role="tablist" aria-label="Sections">
+          <button
+            type="button"
+            onClick={() => setActiveTab("generate")}
+            className={`tabButton ${activeTab === "generate" ? "tabButtonActive" : ""}`}
+            role="tab"
+            aria-selected={activeTab === "generate"}
+          >
+            Generate
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("assets")}
+            className={`tabButton ${activeTab === "assets" ? "tabButtonActive" : ""}`}
+            role="tab"
+            aria-selected={activeTab === "assets"}
+          >
+            Assets
+          </button>
+        </div>
         <span className="muted">
           Backend must have <code>GEMINI_API_KEY</code> set.
         </span>
@@ -437,6 +452,8 @@ export default function App() {
               </div>
 
               <div style={{ height: 12 }} />
+
+              <div className="sectionTitle">Creative Direction</div>
 
               <div>
                 <FieldLabel
@@ -536,6 +553,8 @@ export default function App() {
 
               <div style={{ height: 12 }} />
 
+              <div className="sectionTitle">Background</div>
+
               <div>
                 <FieldLabel
                   label="Background theme (optional)"
@@ -614,6 +633,8 @@ export default function App() {
               <div className="divider" />
 
               <div style={{ height: 12 }} />
+
+              <div className="sectionTitle">Model</div>
 
               <div>
                 <FieldLabel
@@ -775,10 +796,48 @@ export default function App() {
               label="Generated result"
               info="Your generated ecommerce scene will appear here. For best results, start with Auto settings and only lock in a background/model when you need consistency."
             />
-            {resultDataUrl ? (
-              <img src={resultDataUrl} alt="Generated look" />
+            {isGenerating ? (
+              <div className="resultPlaceholder">
+                <div className="skeleton" style={{ height: 420 }} />
+                <div style={{ height: 10 }} />
+                <div className="skeleton" style={{ height: 14, width: "62%" }} />
+              </div>
+            ) : resultDataUrl ? (
+              <>
+                <div className="resultActions">
+                  <div className="resultActionsLeft">
+                    <a
+                      className="btn btnSecondary"
+                      href={resultDataUrl}
+                      download={`look-${Date.now()}.${mimeToExtension(resultMimeType)}`}
+                    >
+                      Download
+                    </a>
+                    <button
+                      type="button"
+                      className="btnGhost"
+                      onClick={() => {
+                        setResultDataUrl(null);
+                        setResultMimeType(null);
+                        setChosenSummary(null);
+                        setDebugSummary(null);
+                        setGenerateError(null);
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="muted">Tip: use “Debug” to inspect prompts.</div>
+                </div>
+                <img src={resultDataUrl} alt="Generated look" />
+              </>
             ) : (
-              <div className="muted">No output yet.</div>
+              <div className="resultPlaceholder resultEmpty">
+                <div>
+                  <div className="resultEmptyTitle">Ready when you are</div>
+                  <div className="muted">Upload a garment photo, then click “Generate look”.</div>
+                </div>
+              </div>
             )}
           </div>
         </div>

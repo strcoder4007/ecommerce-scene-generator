@@ -74,6 +74,31 @@ class LookPlan:
     model_styling_notes: str
 
 
+@dataclass(frozen=True)
+class LookOverrides:
+    occasion: str | None = None
+    color_scheme: str | None = None
+    print_style: str | None = None
+    background_theme: str | None = None
+    model_ethnicity: str | None = None
+    model_styling_notes: str | None = None
+
+    def to_prompt_lines(self) -> list[str]:
+        lines: list[str] = []
+        for key, val in [
+            ("occasion", self.occasion),
+            ("color_scheme", self.color_scheme),
+            ("print_style", self.print_style),
+            ("background_theme", self.background_theme),
+            ("model_ethnicity", self.model_ethnicity),
+            ("model_styling_notes", self.model_styling_notes),
+        ]:
+            v = (val or "").strip()
+            if v:
+                lines.append(f"- {key}: {v}")
+        return lines
+
+
 def plan_look_from_garment(
     *,
     api_key: str,
@@ -82,35 +107,28 @@ def plan_look_from_garment(
     garment_mime_type: str,
     available_background_themes: list[str],
     available_model_ethnicities: list[str],
-    user_overrides: dict[str, str | None],
+    user_overrides: LookOverrides,
     timeout_seconds: int,
 ) -> LookPlan:
     # Provide constraint hints but don't force exact matches (fallback handled later).
     bg_hint = ", ".join(available_background_themes[:20]) if available_background_themes else "(none available)"
     eth_hint = ", ".join(available_model_ethnicities[:20]) if available_model_ethnicities else "(none available)"
 
-    override_lines: list[str] = []
-    for key in [
-        "occasion",
-        "color_scheme",
-        "print_style",
-        "background_theme",
-        "model_ethnicity",
-        "model_styling_notes",
-    ]:
-        val = (user_overrides.get(key) or "").strip()
-        if val:
-            override_lines.append(f"- {key}: {val}")
+    override_lines = user_overrides.to_prompt_lines()
     overrides_block = "\n".join(override_lines) if override_lines else "- (none)"
 
     prompt = f"""
-You are a fashion ecommerce creative director.
-Analyze the GARMENT PHOTO and propose a complete styling plan for a photorealistic product image.
+You are a senior fashion ecommerce creative director for product photography.
+The input is a GARMENT PHOTO (usually a single garment on a mannequin). There is no real person in the input.
+
+Goal: propose a styling plan to generate a photorealistic, high-conversion ecommerce product image:
+- A single model wearing EXACTLY the same garment from the GARMENT PHOTO.
+- Be creative in the scene + styling while keeping it commercially usable and product-first.
 
 Hard rules:
 - Output ONLY valid JSON (no markdown, no commentary).
-- Keep the garment design recognizable (same silhouette/structure).
-- The final look should be appropriate and commercially usable.
+- Keep the garment design accurate: do NOT invent or change neckline, sleeves, hem, print/pattern, logos/graphics, or fabric texture.
+- Do not hallucinate specific garment details you cannot see; when uncertain, use "as-is".
 
 If the user provided overrides, respect them:
 {overrides_block}
@@ -121,14 +139,14 @@ Model ethnicities available (if you can match one, do so): {eth_hint}
 Return JSON with exactly these keys:
 {{
   "occasion": string (examples: "beachwear", "party", "evening", "casual"),
-  "color_scheme": string (short),
-  "print_style": string (short),
-  "style_keywords": array of strings,
+  "color_scheme": string (short; for the overall scene palette; must NOT imply recoloring the garment),
+  "print_style": string (short; describe the garment print if visible, otherwise "as-is"),
+  "style_keywords": array of strings (3-8 items, short),
   "background_theme": string,
-  "accessories": array of strings,
-  "negative_prompt": string,
+  "accessories": array of strings (0-6 items; realistic),
+  "negative_prompt": string (short avoid clause),
   "model_ethnicity": string,
-  "model_styling_notes": string
+  "model_styling_notes": string (short; hair/makeup/jewelry guidance)
 }}
 """.strip()
 
@@ -147,15 +165,18 @@ Return JSON with exactly these keys:
         raise LookPlanError(f"Failed to plan look: {exc}") from exc
 
     # Apply overrides last to guarantee they win.
-    occasion = _coerce_str(user_overrides.get("occasion")) or _coerce_str(data.get("occasion")) or "casual"
-    color_scheme = _coerce_str(user_overrides.get("color_scheme")) or _coerce_str(data.get("color_scheme")) or "neutral"
-    print_style = _coerce_str(user_overrides.get("print_style")) or _coerce_str(data.get("print_style")) or "solid"
+    occasion = _coerce_str(user_overrides.occasion) or _coerce_str(data.get("occasion")) or "casual"
+    color_scheme = _coerce_str(user_overrides.color_scheme) or _coerce_str(data.get("color_scheme")) or "neutral"
+    print_style = _coerce_str(user_overrides.print_style) or _coerce_str(data.get("print_style")) or "as-is"
     style_keywords = _coerce_str_list(data.get("style_keywords"))
-    background_theme = _coerce_str(user_overrides.get("background_theme")) or _coerce_str(data.get("background_theme")) or occasion
+    background_theme = _coerce_str(user_overrides.background_theme) or _coerce_str(data.get("background_theme")) or occasion
     accessories = _coerce_str_list(data.get("accessories"))
-    negative_prompt = _coerce_str(data.get("negative_prompt")) or "blurry, low quality, extra limbs, text, watermark"
-    model_ethnicity = _coerce_str(user_overrides.get("model_ethnicity")) or _coerce_str(data.get("model_ethnicity")) or ""
-    model_styling_notes = _coerce_str(user_overrides.get("model_styling_notes")) or _coerce_str(data.get("model_styling_notes")) or ""
+    negative_prompt = (
+        _coerce_str(data.get("negative_prompt"))
+        or "blurry, low quality, incorrect garment, altered design, wrong print, extra limbs, deformed hands, text overlay, watermark"
+    )
+    model_ethnicity = _coerce_str(user_overrides.model_ethnicity) or _coerce_str(data.get("model_ethnicity")) or ""
+    model_styling_notes = _coerce_str(user_overrides.model_styling_notes) or _coerce_str(data.get("model_styling_notes")) or ""
 
     return LookPlan(
         occasion=occasion,
@@ -223,14 +244,15 @@ def generate_final_prompt(
     )
 
     prompt = f"""
-You write prompts for a photorealistic fashion image model.
-Write ONE concise prompt to generate a high-quality ecommerce photo.
+You write prompts for a photorealistic fashion image model that generates ecommerce product photos.
+Write ONE concise prompt to generate a high-quality, product-first ecommerce image.
 
 Constraints:
-- The output image must show a single female model wearing the garment from the GARMENT PHOTO.
+- The output image must show a single female model wearing EXACTLY the garment from the GARMENT REFERENCE image (the garment may be photographed on a mannequin; ignore the mannequin).
 - {background_instruction} (match: {background_desc}).
 - {model_instruction} (match: {model_desc}).
-- Keep anatomy correct, no extra limbs, no blur, no text/logos/watermarks.
+- Keep anatomy correct, no extra limbs, no blur, no duplicated people.
+- Do not add any new text/watermarks/logos (especially in the background). Preserve garment design from the reference (do not invent extra straps, patterns, or recolor it).
 
 Styling plan:
 - occasion: {plan.occasion}
@@ -273,7 +295,7 @@ Return ONLY the prompt text (no quotes, no JSON).
         )
         return (
             f"Photorealistic ecommerce fashion photo, {model_clause} wearing the garment from the GARMENT PHOTO, "
-            f"{plan.occasion} style, {plan.color_scheme} color scheme, {plan.print_style} print, "
+            f"{plan.occasion} style, {plan.color_scheme} color palette, garment print as in reference ({plan.print_style}), "
             f"accessories: {', '.join(plan.accessories) if plan.accessories else 'none'}, "
             f"{background_clause}, natural lighting, realistic fabric drape, avoid: {avoid}."
         )
