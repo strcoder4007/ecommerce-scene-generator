@@ -2,10 +2,11 @@ Automating the AI Fashion Design Workflow
 
 Repo Implementation Notes (Static / Client-Side)
 
-- The app is implemented as a 100% client-side Vue 3 dashboard (Vite). It builds to static HTML/CSS/JS in `frontend/dist/` for GitHub Pages.
+- The app is implemented as a 100% client-side Vue 3 dashboard (Vite). It builds to static HTML/CSS/JS in `docs/` for GitHub Pages.
 - The user provides their own Gemini API key in the UI (“BYO key”). The key is stored locally in the browser (localStorage) and used for direct Gemini API calls.
+- Designers can manage multiple “storyboards” (ideas). Each storyboard stores its settings (occasion, background/model selection, accessories, etc.) in localStorage.
 - Background/model “assets” are stored locally in the browser (IndexedDB) and are selectable via the Assets tab.
-- The Python backend in `backend/` is legacy and not required for the static deployment path.
+- No backend is required for the static deployment path.
 
 Introduction: Modern fashion design increasingly uses AI for visualization. In the current manual pipeline, designers photograph a white dress prototype, then use a text-to-image model (e.g. Google’s Gemini “Nano Banana” Pro
 blog.google
@@ -135,7 +136,7 @@ medium.com
 stability.ai
 .
 
-Data Storage: Browser storage (IndexedDB) can store local assets and preferences for a single user/device.
+Data Storage: Local-only browser storage — storyboards/settings + API key in localStorage, and background/model assets in IndexedDB.
 
 Infrastructure: Cloud GPU instances to run models, containerized deployment (Docker) for portability.
 

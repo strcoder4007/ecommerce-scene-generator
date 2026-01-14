@@ -1,35 +1,36 @@
-# Ecommerce Scene Generator (Starter)
+# Ecommerce Scene Generator (Client-Side)
 
-This repo includes:
-- `frontend/`: Vue 3 (Vite) dashboard that runs 100% client-side (static HTML/CSS/JS build).
-- `backend/`: legacy FastAPI backend (no longer required for the GitHub Pages / static deployment flow).
+A 100% client-side Vue 3 (Vite) app that generates photorealistic fashion ecommerce scenes using the Gemini API.
 
 ## Run locally
 
 ```bash
-cd frontend
 npm install
 npm run dev
 ```
 
-Open `http://localhost:5173` and paste your **Gemini API key** in the UI (BYO key). The key is stored locally in your browser (`localStorage`).
+Open `http://localhost:5173/ecommerce-scene-generator/` (adjust if you change `base` in `vite.config.ts`), then paste your **Gemini API key** in the UI. The key is stored locally in your browser (`localStorage`).
 
-## Build static files (GitHub Pages)
+## Storyboards (idea management)
+
+- The **Generate** tab has a storyboard sidebar.
+- Each storyboard stores its settings (occasion, background/model selections, accessories, etc.) in `localStorage`.
+- Create / rename / duplicate / delete storyboards from the sidebar.
+
+## Assets (local-only)
+
+- The **Assets** tab stores background/model reference images locally in your browser (IndexedDB).
+- Nothing is uploaded to a server.
+
+## Build & deploy (GitHub Pages)
 
 ```bash
 npm run build
 ```
 
-Output: `frontend/dist/` (deploy these files).
+Static output is written to `docs/` (configured in `vite.config.ts`). For GitHub Pages, set the Pages source to `docs/` and ensure `base` in `vite.config.ts` matches your repo name (currently `/ecommerce-scene-generator/`).
 
-For GitHub Pages, make sure Vite’s base path matches your repo name. One option:
+## Notes / security
 
-```bash
-npm run build -- --base=/YOUR_REPO_NAME/
-```
-
-## Notes
-
-- All generation happens in the browser via direct calls to the Gemini API using the key you provide.
-- The **Assets** tab stores backgrounds/models locally in your browser (IndexedDB). Nothing is uploaded to a server.
-- If you want to avoid client-side keys entirely, use a backend/serverless proxy instead of GitHub Pages (not covered in this static-only setup).
+- This is **BYO key**: all Gemini calls happen from the browser using the key you provide.
+- If you want to avoid exposing keys to clients, use a backend/serverless proxy instead of GitHub Pages.

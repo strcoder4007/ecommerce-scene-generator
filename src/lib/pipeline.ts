@@ -237,13 +237,13 @@ export async function generateFinalPrompt(opts: {
 
   const prompt = `
 You write prompts for a photorealistic fashion image model that generates ecommerce product photos.
-Write ONE concise prompt (2–4 sentences) to generate a high-quality, product-first ecommerce image.
+Write ONE concise prompt (4–5 sentences) to generate a high-quality, product-first ecommerce image.
 
 Constraints:
 - The output image must show a single female model wearing EXACTLY the garment from the GARMENT REFERENCE image (the garment may be photographed on a mannequin; ignore the mannequin).
 - ${background_instruction} (match: ${background_desc}).
 - ${model_instruction} (match: ${model_desc}).
-- Model age: young adult (21–27), not older than 27. The model must look clearly adult (do not depict a minor).
+- Model age: young adult (18-23), not older than 23. The model must look clearly adult (do not depict a minor).
 - HARD FRAMING: full-body head-to-toe. Include the entire head and both feet/shoes in frame (no cropping at any edge). Leave a small margin above head and below feet.
 - Product scale: keep the model/garment large in frame (avoid wide shots where the product looks tiny). Aim for the model to fill ~80–90% of the image height while still fully visible head-to-toe. Ensure fabric texture/print details are readable.
 - Keep anatomy correct, no extra limbs, no blur, no duplicated people.
@@ -289,7 +289,7 @@ Return ONLY the prompt text (no quotes, no JSON).
       ? "set in the BACKGROUND PHOTO"
       : `set in a photorealistic ${opts.plan.background_theme || opts.plan.occasion} background`;
     const model_clause = `one female model${opts.hasModelReference ? "" : opts.plan.model_ethnicity ? ` (prefer ${opts.plan.model_ethnicity})` : ""}`;
-    const fallback = `Photorealistic ecommerce fashion photo (warm sunny vacation lookbook vibe), young adult female model (21–27; not older than 27; must look adult), full-body head-to-toe vertical 4:5 (include entire head and both feet/shoes; small margin; no cropping), ${model_clause} wearing the garment from the GARMENT REFERENCE, model/garment large in frame (avoid wide shot/tiny product; model fills ~80–90% height), ${opts.plan.occasion} style, ${opts.plan.color_scheme} palette, garment print as in reference (${opts.plan.print_style}), accessories: ${opts.plan.accessories.length ? opts.plan.accessories.join(", ") : "none"}, ${background_clause}, natural daylight with soft fill, 35–50mm look, crisp focus, medium contrast, visible fabric texture, avoid: ${avoid}, gritty street style, dramatic high-fashion, harsh shadows, cropped head, cropped feet, close-up portrait, half-body, extreme wide shot, middle-aged, elderly.`;
+    const fallback = `Photorealistic ecommerce fashion photo (warm sunny vacation lookbook vibe), young adult female model (18-23; not older than 23; must look adult), full-body head-to-toe vertical 4:5 (include entire head and both feet/shoes; small margin; no cropping), ${model_clause} wearing the garment from the GARMENT REFERENCE, model/garment large in frame (avoid wide shot/tiny product; model fills ~80–90% height), ${opts.plan.occasion} style, ${opts.plan.color_scheme} palette, garment print as in reference (${opts.plan.print_style}), accessories: ${opts.plan.accessories.length ? opts.plan.accessories.join(", ") : "none"}, ${background_clause}, natural daylight with soft fill, 35–50mm look, crisp focus, medium contrast, visible fabric texture, avoid: ${avoid}, gritty street style, dramatic high-fashion, harsh shadows, cropped head, cropped feet, close-up portrait, half-body, extreme wide shot, middle-aged, elderly.`;
     return { prompt: fallback, rawText: String(err?.message || err) };
   }
 }
