@@ -82,7 +82,7 @@ function overrideLines(overrides: LookOverrides): string[] {
 export async function planLookFromGarment(opts: {
   apiKey: string;
   model: string;
-  garmentImage: { mimeType: string; data: Uint8Array };
+  garmentImages: Array<{ mimeType: string; data: Uint8Array }>;
   availableBackgroundThemes: string[];
   availableModelEthnicities: string[];
   userOverrides: LookOverrides;
@@ -100,7 +100,7 @@ export async function planLookFromGarment(opts: {
 
   const prompt = `
 You are a senior fashion ecommerce creative director for product photography.
-The input is a GARMENT PHOTO (usually a single garment on a mannequin). There is no real person in the input.
+The input is 1–4 GARMENT PHOTOS of the SAME garment (front/side/back angles are common). There is no real person in the input.
 
 Goal: propose a styling plan to generate a photorealistic, high-conversion ecommerce product image:
 - A single model wearing EXACTLY the same garment from the GARMENT PHOTO.
@@ -144,7 +144,7 @@ Return JSON with exactly these keys:
     apiKey: opts.apiKey,
     model: opts.model,
     promptText: prompt,
-    images: [opts.garmentImage],
+    images: opts.garmentImages,
     timeoutMs: opts.timeoutMs ?? 120_000,
     temperature: 0.2,
     maxOutputTokens: 512,
@@ -297,7 +297,7 @@ Return ONLY the prompt text (no quotes, no JSON).
 export function buildGarmentReferencePrompt(): string {
   return [
     "You are generating a photorealistic ecommerce product reference image of a garment.",
-    "The input image is a GARMENT PHOTO (often on a mannequin).",
+    "The input images are 1–4 GARMENT PHOTOS of the SAME garment (front/side/back angles are common).",
     "Create a clean, high-resolution catalog cutout of the EXACT same garment on a plain light-neutral background.",
     "Use even, diffused studio lighting with accurate color and crisp edges (no harsh shadows).",
     "Hard rules:",

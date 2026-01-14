@@ -72,8 +72,12 @@
 	              <template v-if="storyboardRuntime[sb.id]?.resultDataUrl">
 	                <img :src="storyboardRuntime[sb.id].resultDataUrl ?? undefined" alt="" draggable="false" />
 	              </template>
-	              <template v-else-if="storyboardRuntime[sb.id]?.garmentDataUrl">
-	                <img :src="storyboardRuntime[sb.id].garmentDataUrl ?? undefined" alt="" draggable="false" />
+	              <template v-else-if="storyboardRuntime[sb.id]?.garmentDataUrls?.length">
+	                <img
+	                  :src="storyboardRuntime[sb.id].garmentDataUrls[0] ?? undefined"
+	                  alt=""
+	                  draggable="false"
+	                />
 	              </template>
 	              <div v-else class="storyboardCardPreviewPlaceholder">No preview yet</div>
 	            </div>
@@ -138,21 +142,37 @@
 	        <form @submit.prevent="onGenerateLook">
 	          <fieldset class="formFieldset" :disabled="isGenerating">
 	            <div>
-	            <FieldLabel
-	              htmlFor="garmentPhoto"
-	              label="Garment photo"
-	              info="Upload the garment image you want to place on a model. The generator will preserve the garment silhouette and create a photorealistic ecommerce scene around it."
+	              <FieldLabel
+		              htmlFor="garmentPhoto"
+		              label="Garment photos"
+		              info="Upload 1–4 photos of the SAME garment (front/side/back). The generator will preserve the garment silhouette and create a photorealistic ecommerce scene around it."
+		            />
+	            <input
+	              id="garmentPhoto"
+	              ref="garmentFileInputRef"
+	              type="file"
+	              accept="image/*"
+	              multiple
+	              @change="onGarmentFileChange"
 	            />
-            <input
-              id="garmentPhoto"
-              ref="garmentFileInputRef"
-              type="file"
-              accept="image/*"
-              @change="onGarmentFileChange"
-            />
-          </div>
+	          </div>
+	
+	          <div v-if="activeRuntime.garmentDataUrls.length" style="margin-top: 12px">
+	            <label>Garment preview</label>
+	            <div class="preview previewGarments">
+	              <img
+	                v-for="(src, idx) in activeRuntime.garmentDataUrls"
+	                :key="`${activeStoryboardId}-${idx}`"
+	                :src="src"
+	                :alt="`Garment angle ${idx + 1}`"
+	              />
+	            </div>
+	            <div v-if="activeRuntime.garmentDataUrls.length < 3" class="muted" style="margin-top: 8px">
+	              Tip: upload 3–4 angles (front/side/back) for better accuracy.
+	            </div>
+	          </div>
 
-          <div style="height: 18px" />
+	          <div style="height: 18px" />
 
           <div class="sectionTitle">Creative Direction</div>
 
@@ -453,20 +473,14 @@
           <div v-if="assetsError" class="error">{{ assetsError }}</div>
           <div v-if="activeRuntime.generateError" class="error">{{ activeRuntime.generateError }}</div>
 
-          <div v-if="activeRuntime.garmentDataUrl" class="preview">
-            <div>
-              <label>Garment preview</label>
-              <img :src="activeRuntime.garmentDataUrl" alt="Garment preview" />
-            </div>
-            <div>
-              <label>Selection preview</label>
-              <div class="muted">
-                {{ activeConfig.selectedBackgroundId ? "Using selected background." : "Auto background." }}
-                {{ " " }}
-                {{ activeConfig.selectedModelId ? "Using selected model." : "Auto model." }}
-	        </div>
-	      </div>
-	    </div>
+	          <div v-if="activeRuntime.garmentDataUrls.length" style="margin-top: 16px">
+	            <label>Selection preview</label>
+	            <div class="muted">
+	              {{ activeConfig.selectedBackgroundId ? "Using selected background." : "Auto background." }}
+	              {{ " " }}
+	              {{ activeConfig.selectedModelId ? "Using selected model." : "Auto model." }}
+	            </div>
+	          </div>
 
           <div v-if="activeRuntime.chosenSummary" style="margin-top: 12px">
             <label>Chosen plan</label>
@@ -770,29 +784,29 @@ watch(
   { flush: "post" },
 );
 
-type StoryboardRuntime = {
-  garmentDataUrl: string | null;
-  garmentFileName: string | null;
-  generateError: string | null;
-  chosenSummary: any;
-  debugSummary: any;
-  resultDataUrl: string | null;
-  resultMimeType: string | null;
-  resultTimingsMs: Record<string, number> | null;
-};
+	type StoryboardRuntime = {
+	  garmentDataUrls: string[];
+	  garmentFileNames: string[];
+	  generateError: string | null;
+	  chosenSummary: any;
+	  debugSummary: any;
+	  resultDataUrl: string | null;
+	  resultMimeType: string | null;
+	  resultTimingsMs: Record<string, number> | null;
+	};
 
-function createDefaultRuntime(): StoryboardRuntime {
-  return {
-    garmentDataUrl: null,
-    garmentFileName: null,
-    generateError: null,
-    chosenSummary: null,
-    debugSummary: null,
-    resultDataUrl: null,
-    resultMimeType: null,
-    resultTimingsMs: null,
-  };
-}
+	function createDefaultRuntime(): StoryboardRuntime {
+	  return {
+	    garmentDataUrls: [],
+	    garmentFileNames: [],
+	    generateError: null,
+	    chosenSummary: null,
+	    debugSummary: null,
+	    resultDataUrl: null,
+	    resultMimeType: null,
+	    resultTimingsMs: null,
+	  };
+	}
 
 const storyboards = ref<StoryboardRecord[]>([]);
 const activeStoryboardId = ref("");
@@ -846,30 +860,64 @@ function formatStoryboardTimestamp(iso: string): string {
   return d.toLocaleString(undefined, { month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-function storyboardSubtitle(sb: StoryboardRecord): string {
-  const cfg = sb.config;
-  const parts: string[] = [];
+	function storyboardSubtitle(sb: StoryboardRecord): string {
+	  const cfg = sb.config;
+	  const parts: string[] = [];
 
-  const occasion =
-    cfg.occasionPreset === "custom"
-      ? cfg.occasionDetails.trim()
-      : combinePresetAndCustom({ presetText: cfg.occasionPreset, customText: cfg.occasionDetails, joiner: ", " });
-  if (occasion) parts.push(occasion);
+	  const occasion =
+	    cfg.occasionPreset === "custom"
+	      ? cfg.occasionDetails.trim()
+	      : combinePresetAndCustom({ presetText: cfg.occasionPreset, customText: cfg.occasionDetails, joiner: ", " });
+	  if (occasion) parts.push(`Occasion: ${occasion}`);
 
-  const background = cfg.selectedBackgroundId
-    ? "Pinned background"
-    : cfg.backgroundThemePreset === "custom"
-      ? cfg.backgroundThemeDetails.trim()
-      : combinePresetAndCustom({
-          presetText: cfg.backgroundThemePreset,
-          customText: cfg.backgroundThemeDetails,
-          joiner: ", ",
-        });
-  if (background) parts.push(background);
+	  const color = cfg.colorScheme.trim();
+	  if (color) parts.push(`Colors: ${color}`);
 
-  if (cfg.accessories.trim()) parts.push("Accessories");
-  return parts.join(" · ") || "No settings yet";
-}
+	  const stylePresetText =
+	    cfg.stylePreset && cfg.stylePreset !== "custom" ? stylePresetKeywords[cfg.stylePreset] ?? cfg.stylePreset : "";
+	  const styleKeywords =
+	    cfg.stylePreset === "custom"
+	      ? cfg.styleKeywordsDetails.trim()
+	      : combinePresetAndCustom({ presetText: stylePresetText, customText: cfg.styleKeywordsDetails, joiner: ", " });
+	  if (styleKeywords) parts.push(`Style: ${styleKeywords}`);
+
+	  const bgTheme =
+	    cfg.backgroundThemePreset === "custom"
+	      ? cfg.backgroundThemeDetails.trim()
+	      : combinePresetAndCustom({
+	          presetText: cfg.backgroundThemePreset,
+	          customText: cfg.backgroundThemeDetails,
+	          joiner: ", ",
+	        });
+	  if (bgTheme) parts.push(`BG: ${bgTheme}`);
+	  if (cfg.selectedBackgroundId) parts.push("BG pinned");
+
+	  const accessories = cfg.accessories.trim();
+	  if (accessories) parts.push(`Accessories: ${accessories}`);
+
+	  const ethnicity =
+	    cfg.modelPreset === "custom"
+	      ? cfg.modelDetails.trim()
+	      : combinePresetAndCustom({ presetText: cfg.modelPreset, customText: cfg.modelDetails, joiner: ", " });
+	  if (ethnicity) parts.push(`Model: ${ethnicity}`);
+	  if (cfg.selectedModelId) parts.push("Model pinned");
+
+	  const stylingPresetText =
+	    cfg.modelStylingPreset && cfg.modelStylingPreset !== "custom"
+	      ? modelStylingPresetKeywords[cfg.modelStylingPreset] ?? cfg.modelStylingPreset
+	      : "";
+	  const styling =
+	    cfg.modelStylingPreset === "custom"
+	      ? cfg.modelStylingNotes.trim()
+	      : combinePresetAndCustom({
+	          presetText: stylingPresetText,
+	          customText: cfg.modelStylingNotes,
+	          joiner: ", ",
+	        });
+	  if (styling) parts.push(`Styling: ${styling}`);
+
+	  return parts.join("\n") || "No settings yet";
+	}
 
 	function selectStoryboard(id: string) {
 	  if (isGenerating.value) return;
@@ -907,22 +955,22 @@ function uniqueTitle(base: string): string {
 	  generateView.value = "editor";
 	}
 
-function duplicateActiveStoryboard() {
-  const src = activeStoryboard.value;
-  const dst = createStoryboardRecord({ title: uniqueTitle(`${src.title} (copy)`), config: { ...src.config } });
-  storyboards.value.unshift(dst);
-  storyboardRuntime.value[dst.id] = {
-    ...createDefaultRuntime(),
-    garmentDataUrl: activeRuntime.value.garmentDataUrl,
-    garmentFileName: activeRuntime.value.garmentFileName,
-    chosenSummary: safeClone(activeRuntime.value.chosenSummary),
-    debugSummary: safeClone(activeRuntime.value.debugSummary),
-    resultDataUrl: activeRuntime.value.resultDataUrl,
-    resultMimeType: activeRuntime.value.resultMimeType,
-    resultTimingsMs: activeRuntime.value.resultTimingsMs ? { ...activeRuntime.value.resultTimingsMs } : null,
-  };
-  activeStoryboardId.value = dst.id;
-}
+	function duplicateActiveStoryboard() {
+	  const src = activeStoryboard.value;
+	  const dst = createStoryboardRecord({ title: uniqueTitle(`${src.title} (copy)`), config: { ...src.config } });
+	  storyboards.value.unshift(dst);
+	  storyboardRuntime.value[dst.id] = {
+	    ...createDefaultRuntime(),
+	    garmentDataUrls: [...activeRuntime.value.garmentDataUrls],
+	    garmentFileNames: [...activeRuntime.value.garmentFileNames],
+	    chosenSummary: safeClone(activeRuntime.value.chosenSummary),
+	    debugSummary: safeClone(activeRuntime.value.debugSummary),
+	    resultDataUrl: activeRuntime.value.resultDataUrl,
+	    resultMimeType: activeRuntime.value.resultMimeType,
+	    resultTimingsMs: activeRuntime.value.resultTimingsMs ? { ...activeRuntime.value.resultTimingsMs } : null,
+	  };
+	  activeStoryboardId.value = dst.id;
+	}
 
 function requestDeleteActiveStoryboard() {
   if (storyboards.value.length <= 1) return;
@@ -987,26 +1035,27 @@ try {
 
 const garmentFileInputRef = ref<HTMLInputElement | null>(null);
 
-async function onGarmentFileChange(e: Event) {
-  const input = e.target as HTMLInputElement | null;
-  const file = input?.files?.[0] ?? null;
-  const storyboardId = activeStoryboardId.value;
-  const runtime = storyboardRuntime.value[storyboardId];
-  if (!runtime) return;
+	async function onGarmentFileChange(e: Event) {
+	  const input = e.target as HTMLInputElement | null;
+	  const files = Array.from(input?.files ?? []);
+	  const storyboardId = activeStoryboardId.value;
+	  const runtime = storyboardRuntime.value[storyboardId];
+	  if (!runtime) return;
 
-  runtime.generateError = null;
+	  runtime.generateError = null;
 
-  if (!file) {
-    runtime.garmentDataUrl = null;
-    runtime.garmentFileName = null;
-    return;
-  }
+	  if (!files.length) {
+	    runtime.garmentDataUrls = [];
+	    runtime.garmentFileNames = [];
+	    return;
+	  }
 
-  runtime.garmentFileName = file.name || null;
-  runtime.garmentDataUrl = await fileToDataUrl(file);
+	  const limited = files.slice(0, 4);
+	  runtime.garmentFileNames = limited.map((f) => f.name || "garment");
+	  runtime.garmentDataUrls = await Promise.all(limited.map((f) => fileToDataUrl(f)));
 
-  if (input) input.value = "";
-}
+	  if (input) input.value = "";
+	}
 
 const isGenerating = ref(false);
 
@@ -1212,10 +1261,10 @@ async function onGenerateLook() {
     runtime.generateError = "Please paste your API key (BYO key).";
     return;
   }
-  if (!runtime.garmentDataUrl) {
-    runtime.generateError = "Please select a garment photo.";
-    return;
-  }
+	    if (!runtime.garmentDataUrls.length) {
+	      runtime.generateError = "Please select a garment photo.";
+	      return;
+	    }
 
   isGenerating.value = true;
   generationStepIndex.value = 0;
@@ -1228,12 +1277,12 @@ async function onGenerateLook() {
   try {
     generationStepIndex.value = 0;
 
-    const garmentDataUrl = runtime.garmentDataUrl;
-    if (!garmentDataUrl) {
-      runtime.generateError = "Please select a garment photo.";
-      return;
-    }
-    const garmentInline = dataUrlToInlineImage(garmentDataUrl);
+	    const garmentDataUrls = runtime.garmentDataUrls;
+	    if (!garmentDataUrls.length) {
+	      runtime.generateError = "Please select garment photos.";
+	      return;
+	    }
+	    const garmentInlines = garmentDataUrls.map((src) => dataUrlToInlineImage(src));
 
     const availableThemes = Array.from(
       new Set(backgrounds.value.map((b) => (b.theme || "").trim()).filter(Boolean)),
@@ -1255,15 +1304,15 @@ async function onGenerateLook() {
     let plan: LookPlan;
     const tPlan0 = performance.now();
     try {
-      const planRes = await planLookFromGarment({
-        apiKey: geminiApiKey.value,
-        model: "gemini-3-flash-preview",
-        garmentImage: garmentInline,
-        availableBackgroundThemes: availableThemes,
-        availableModelEthnicities: availableEthnicities,
-        userOverrides,
-        timeoutMs: 120_000,
-      });
+	      const planRes = await planLookFromGarment({
+	        apiKey: geminiApiKey.value,
+	        model: "gemini-3-flash-preview",
+	        garmentImages: garmentInlines,
+	        availableBackgroundThemes: availableThemes,
+	        availableModelEthnicities: availableEthnicities,
+	        userOverrides,
+	        timeoutMs: 120_000,
+	      });
       plan = planRes.plan;
       debug.plan_raw_text = planRes.rawText;
       debug.plan_raw_json = planRes.rawJson;
@@ -1309,15 +1358,15 @@ async function onGenerateLook() {
 
     generationStepIndex.value = 2;
 
-    const garmentRefPrompt = buildGarmentReferencePrompt();
-    const tGarment0 = performance.now();
-    const garmentRef = await generateImage({
-      apiKey: geminiApiKey.value,
-      model: "gemini-3-pro-image-preview",
-      promptText: garmentRefPrompt,
-      images: [garmentInline],
-      timeoutMs: 180_000,
-    });
+	    const garmentRefPrompt = buildGarmentReferencePrompt();
+	    const tGarment0 = performance.now();
+	    const garmentRef = await generateImage({
+	      apiKey: geminiApiKey.value,
+	      model: "gemini-3-pro-image-preview",
+	      promptText: garmentRefPrompt,
+	      images: garmentInlines,
+	      timeoutMs: 180_000,
+	    });
     timings.garment_reference = Math.round(performance.now() - tGarment0);
 
     const garmentRefBytes = base64ToBytes(garmentRef.imageBase64);
