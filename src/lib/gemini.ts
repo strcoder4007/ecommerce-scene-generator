@@ -99,9 +99,9 @@ export async function generateText(opts: {
   maxOutputTokens?: number;
 }): Promise<GeminiTextResult> {
   const apiKey = (opts.apiKey || "").trim();
-  if (!apiKey) throw new GeminiError("Missing Gemini API key.");
+  if (!apiKey) throw new GeminiError("Missing API key.");
 
-  const modelName = normalizeGeminiModelName(opts.model, "gemini-1.5-flash");
+  const modelName = normalizeGeminiModelName(opts.model, "gemini-3-flash-preview");
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent`;
   const url = `${endpoint}?${new URLSearchParams({ key: apiKey }).toString()}`;
 
@@ -157,6 +157,9 @@ const PROMPT_PHOTOSHOOT_QUALITY_BLOCK = [
   "- Professional high-end fashion/product photoshoot look (studio-grade lighting, clean color, high dynamic range).",
   "- Accurate textures (skin/fabric), natural shadows, realistic perspective and depth.",
   "- Shot on a high-end camera with a premium lens; clean, natural bokeh where applicable.",
+  "- Composition: keep the main subject large and fully in frame; avoid extreme wide shots with a tiny subject.",
+  "- Color & finish: balanced exposure, medium contrast, gentle highlight roll-off; natural skin tones; no crushed blacks or blown highlights.",
+  "- Detail: preserve natural skin texture (no plastic/over-smoothed retouching); enhance fabric micro-contrast so seams/weave/print read clearly.",
   "- Avoid: low-res, blurry, noise, compression artifacts, over-smoothing/plastic look, CGI/cartoon look.",
 ].join("\n");
 
@@ -176,7 +179,7 @@ export async function generateImage(opts: {
   temperature?: number;
 }): Promise<GeminiImageResult> {
   const apiKey = (opts.apiKey || "").trim();
-  if (!apiKey) throw new GeminiError("Missing Gemini API key.");
+  if (!apiKey) throw new GeminiError("Missing API key.");
 
   const modelName = normalizeGeminiModelName(opts.model, "gemini-3-pro-image-preview");
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent`;
@@ -257,4 +260,3 @@ export function extractJsonObject(text: string): Record<string, unknown> {
     throw new GeminiError("Failed to parse JSON.");
   }
 }
-

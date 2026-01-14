@@ -8,7 +8,7 @@
         </p>
       </div>
       <div class="badge" style="gap: 10px">
-        <span>Gemini API key</span>
+        <span>API key</span>
         <input
           class="control"
           :type="showApiKey ? 'text' : 'password'"
@@ -63,7 +63,7 @@
             />
           </div>
 
-          <div style="height: 12px" />
+          <div style="height: 18px" />
 
           <div class="sectionTitle">Creative Direction</div>
 
@@ -88,7 +88,7 @@
                 { value: 'custom', label: 'Custom' },
               ]"
             />
-            <div style="height: 10px" />
+            <div style="height: 14px" />
             <input
               class="control"
               type="text"
@@ -97,7 +97,7 @@
             />
           </div>
 
-          <div style="height: 12px" />
+          <div style="height: 18px" />
 
           <div class="row">
             <div>
@@ -126,7 +126,7 @@
             </div>
           </div>
 
-          <div style="height: 12px" />
+          <div style="height: 18px" />
 
           <div>
             <FieldLabel
@@ -150,7 +150,7 @@
                 { value: 'custom', label: 'Custom' },
               ]"
             />
-            <div style="height: 10px" />
+            <div style="height: 14px" />
             <input
               class="control"
               type="text"
@@ -159,11 +159,11 @@
             />
           </div>
 
-          <div style="height: 12px" />
+          <div style="height: 18px" />
 
           <div class="divider" />
 
-          <div style="height: 12px" />
+          <div style="height: 18px" />
 
           <div class="sectionTitle">Background</div>
 
@@ -188,7 +188,7 @@
                 { value: 'custom', label: 'Custom' },
               ]"
             />
-            <div style="height: 10px" />
+            <div style="height: 14px" />
             <input
               class="control"
               type="text"
@@ -197,7 +197,7 @@
             />
           </div>
 
-          <div style="height: 12px" />
+          <div style="height: 18px" />
 
           <div>
             <FieldLabel
@@ -233,11 +233,11 @@
             <div v-else class="muted">No backgrounds detected — the generator will invent one.</div>
           </div>
 
-          <div style="height: 12px" />
+          <div style="height: 18px" />
 
           <div class="divider" />
 
-          <div style="height: 12px" />
+          <div style="height: 18px" />
 
           <div class="sectionTitle">Model</div>
 
@@ -261,7 +261,7 @@
                 { value: 'custom', label: 'Custom' },
               ]"
             />
-            <div style="height: 10px" />
+            <div style="height: 14px" />
             <input
               class="control"
               type="text"
@@ -270,7 +270,7 @@
             />
           </div>
 
-          <div style="height: 12px" />
+          <div style="height: 18px" />
 
           <div>
             <FieldLabel
@@ -306,7 +306,7 @@
             <div v-else class="muted">No models detected — the generator will invent one.</div>
           </div>
 
-          <div style="height: 12px" />
+          <div style="height: 18px" />
 
           <div class="row">
             <div>
@@ -404,7 +404,7 @@
         </div>
 
         <template v-else-if="resultDataUrl">
-          <div class="resultActions">
+	          <div class="resultActions">
             <div class="resultActionsLeft">
               <a
                 class="btn btnSecondary"
@@ -417,7 +417,7 @@
             </div>
             <div class="resultActionsRight">
               <div v-if="resultTimingsMs" class="badge" title="Time spent generating this image">
-                <span>Text LLM</span>
+                <span>Thinking</span>
                 <code>{{ formatDurationMs(computedTimings.textLlmMs) }}</code>
                 <span>Image gen</span>
                 <code>{{ formatDurationMs(computedTimings.imageGenMs) }}</code>
@@ -426,9 +426,15 @@
               </div>
               <div class="muted">Tip: use “Debug” to inspect prompts.</div>
             </div>
-          </div>
-          <img :src="resultDataUrl" alt="Generated look" />
-        </template>
+	          </div>
+	          <div
+	            class="resultImageZoom"
+	            @pointermove="onResultImagePointerMove"
+	            @pointerleave="onResultImagePointerLeave"
+	          >
+	            <img class="resultImage" :src="resultDataUrl" alt="Generated look" draggable="false" />
+	          </div>
+	        </template>
 
         <div v-else class="resultPlaceholder resultEmpty">
           <div>
@@ -450,7 +456,7 @@
             />
             <input ref="bgFileInputRef" type="file" accept="image/*" @change="onBgFileChange" />
           </div>
-          <div style="height: 12px" />
+          <div style="height: 18px" />
           <div class="row">
             <div>
               <FieldLabel label="Title (optional)" info="A short name to recognize this background." />
@@ -464,7 +470,7 @@
               <input class="control" v-model="bgTheme" type="text" placeholder="beach, party, forest..." />
             </div>
           </div>
-          <div style="height: 12px" />
+          <div style="height: 18px" />
           <div>
             <FieldLabel label="Tags (optional)" info="Extra tags to help categorize assets. Use commas." />
             <input class="control" v-model="bgTags" type="text" placeholder="comma separated" />
@@ -488,7 +494,7 @@
             />
             <input ref="modelFileInputRef" type="file" accept="image/*" @change="onModelFileChange" />
           </div>
-          <div style="height: 12px" />
+          <div style="height: 18px" />
           <div class="row">
             <div>
               <FieldLabel label="Title (optional)" info="A short name to recognize this model." />
@@ -502,7 +508,7 @@
               <input class="control" v-model="modelAssetEthnicity" type="text" placeholder="Indian, Russian..." />
             </div>
           </div>
-          <div style="height: 12px" />
+          <div style="height: 18px" />
           <div>
             <FieldLabel label="Tags (optional)" info="Extra tags to help categorize assets. Use commas." />
             <input class="control" v-model="modelTags" type="text" placeholder="comma separated" />
@@ -527,7 +533,7 @@
 
         <div v-if="assetsError" class="error">{{ assetsError }}</div>
 
-        <div style="height: 12px" />
+        <div style="height: 18px" />
 
         <div class="grid">
           <div>
@@ -580,7 +586,7 @@ import {
 
 const GENERATION_STEPS = [
   "Getting all the configurations",
-  "Text LLM call",
+  "Thinking",
   "Compositing a scene",
   "Generating image",
 ] as const;
@@ -697,6 +703,27 @@ function clearResult() {
   generateError.value = null;
 }
 
+function onResultImagePointerMove(event: PointerEvent) {
+  if (event.pointerType && event.pointerType !== "mouse") return;
+  const el = event.currentTarget as HTMLElement | null;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const x = ((event.clientX - rect.left) / rect.width) * 100;
+  const y = ((event.clientY - rect.top) / rect.height) * 100;
+  const clampedX = Math.max(0, Math.min(100, x));
+  const clampedY = Math.max(0, Math.min(100, y));
+  el.style.setProperty("--zoom-x", `${clampedX.toFixed(2)}%`);
+  el.style.setProperty("--zoom-y", `${clampedY.toFixed(2)}%`);
+}
+
+function onResultImagePointerLeave(event: PointerEvent) {
+  const el = event.currentTarget as HTMLElement | null;
+  if (!el) return;
+  el.style.setProperty("--zoom-x", "50%");
+  el.style.setProperty("--zoom-y", "50%");
+}
+
 const computedTimings = computed(() => computeTimingsMs(resultTimingsMs.value || {}));
 
 // Local assets (IndexedDB)
@@ -796,7 +823,7 @@ async function onGenerateLook() {
   resultTimingsMs.value = null;
 
   if (!geminiApiKey.value.trim()) {
-    generateError.value = "Please paste your Gemini API key (BYO key).";
+    generateError.value = "Please paste your API key (BYO key).";
     return;
   }
   if (!garmentPhoto.value) {
@@ -839,7 +866,7 @@ async function onGenerateLook() {
     try {
       const planRes = await planLookFromGarment({
         apiKey: geminiApiKey.value,
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         garmentImage: garmentInline,
         availableBackgroundThemes: availableThemes,
         availableModelEthnicities: availableEthnicities,
@@ -878,7 +905,7 @@ async function onGenerateLook() {
     const tFinalPrompt0 = performance.now();
     const finalPromptRes = await generateFinalPrompt({
       apiKey: geminiApiKey.value,
-      model: "gemini-1.5-flash",
+      model: "gemini-3-flash-preview",
       plan,
       background: chosenBg ? assetMetaFromLocal(chosenBg) : null,
       chosenModel: chosenModel ? assetMetaFromLocal(chosenModel) : null,

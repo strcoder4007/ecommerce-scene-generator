@@ -450,12 +450,39 @@ pre {
 }
 
 .result img {
-  width: 100%;
-  max-height: 560px;
-  object-fit: contain;
+  max-width: 100%;
+}
+
+.resultImageZoom {
+  --zoom-x: 50%;
+  --zoom-y: 50%;
+  position: relative;
+  overflow: hidden;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background: rgba(15, 23, 42, 0.95);
+}
+
+.resultImage {
+  width: 100%;
+  max-height: 560px;
+  object-fit: contain;
+  display: block;
+  transform-origin: var(--zoom-x) var(--zoom-y);
+  transform: scale(1);
+  transition: transform 140ms ease;
+  will-change: transform;
+  user-select: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .resultImageZoom:hover .resultImage {
+    transform: scale(2);
+  }
+
+  .resultImageZoom {
+    cursor: zoom-in;
+  }
 }
 
 .resultActions {
@@ -860,7 +887,8 @@ pre {
 
   .btn,
   button,
-  .pill span {
+  .pill span,
+  .resultImage {
     transition: none !important;
   }
 

@@ -29,6 +29,12 @@ export type LookOverrides = {
   model_styling_notes?: string | null;
 };
 
+function normalizeAvoidClause(text: string): string {
+  const trimmed = (text || "").trim();
+  if (!trimmed) return "";
+  return trimmed.replace(/^avoid\s*:\s*/i, "").trim();
+}
+
 function coerceStr(v: unknown): string | null {
   if (v === null || v === undefined) return null;
   const s = String(v).trim();
@@ -100,6 +106,16 @@ Goal: propose a styling plan to generate a photorealistic, high-conversion ecomm
 - A single model wearing EXACTLY the same garment from the GARMENT PHOTO.
 - Be creative in the scene + styling while keeping it commercially usable and product-first.
 
+Style guide to follow (non-negotiable):
+- Product-first catalogue photography that still feels aspirational lifestyle (not pure studio).
+- Vibe: warm, sunny, polished, approachable, slightly editorial. Think “vacation wardrobe lookbook”.
+- Not gritty street-style; not dramatic high-fashion; no harsh moody lighting.
+- Prioritize full-body vertical framing; model head-to-toe in frame; garment clearly visible and readable (avoid tiny/distant subject).
+- Model age: young adult, not older than 23.
+- Accessories: minimal but intentional/matching (0–3), realistic; do not cover the garment.
+- Hair/makeup: natural glam, clean and commercial (defined brows, neutral lip), no extreme looks.
+- Pose notes (for model_styling_notes): natural weight-shift (S-curve), slight torso twist, relaxed hands, subtle motion if needed to show drape.
+
 Hard rules:
 - Output ONLY valid JSON (no markdown, no commentary).
 - Keep the garment design accurate: do NOT invent or change neckline, sleeves, hem, print/pattern, logos/graphics, or fabric texture.
@@ -119,7 +135,7 @@ Return JSON with exactly these keys:
   "style_keywords": array of strings (3-8 items, short),
   "background_theme": string,
   "accessories": array of strings (0-6 items; realistic),
-  "negative_prompt": string (short avoid clause),
+  "negative_prompt": string (short avoid clause; include things like cropped head/feet, tiny/distant product, close-up portrait, extra limbs, blur, text/watermarks, and any style-guide violations),
   "model_ethnicity": string,
   "model_styling_notes": string (short; hair/makeup/jewelry guidance)
 }`.trim();
@@ -221,15 +237,27 @@ export async function generateFinalPrompt(opts: {
 
   const prompt = `
 You write prompts for a photorealistic fashion image model that generates ecommerce product photos.
-Write ONE concise prompt to generate a high-quality, product-first ecommerce image.
+Write ONE concise prompt (2–4 sentences) to generate a high-quality, product-first ecommerce image.
 
 Constraints:
 - The output image must show a single female model wearing EXACTLY the garment from the GARMENT REFERENCE image (the garment may be photographed on a mannequin; ignore the mannequin).
 - ${background_instruction} (match: ${background_desc}).
 - ${model_instruction} (match: ${model_desc}).
-- Frame the shot so the model is fully visible head-to-toe (no cropped head, no cropped feet).
+- Model age: young adult (21–27), not older than 27. The model must look clearly adult (do not depict a minor).
+- HARD FRAMING: full-body head-to-toe. Include the entire head and both feet/shoes in frame (no cropping at any edge). Leave a small margin above head and below feet.
+- Product scale: keep the model/garment large in frame (avoid wide shots where the product looks tiny). Aim for the model to fill ~80–90% of the image height while still fully visible head-to-toe. Ensure fabric texture/print details are readable.
 - Keep anatomy correct, no extra limbs, no blur, no duplicated people.
 - Do not add any new text/watermarks/logos (especially in the background). Preserve garment design from the reference (do not invent extra straps, patterns, or recolor it).
+
+Style guide baseline to incorporate (must match this look):
+- Product-first catalogue photography with aspirational lifestyle feel (not pure studio).
+- Warm, sunny, polished, approachable, slightly editorial; “vacation wardrobe lookbook” vibe. Not gritty street-style; not dramatic high-fashion.
+- Camera: vertical 4:5 full-body shot, 35–50mm look, eye-level, f/3.2–f/4 shallow separation, crisp focus.
+- Lighting: natural daylight look with soft front-side light (10–45°) and gentle fill; medium contrast; warm midtones; realistic shadows.
+- Pose: natural weight shift (S-curve), legs uncrossed, slight torso twist/shoulder tilt to show silhouette + neckline, relaxed hands (light touch on fabric/hip/railing; no clenched fists), slight head tilt, soft smile; optional subtle step/sway to show drape.
+- Garment presentation: wrinkle-free/steamed look; fit and drape clearly visible; keep neckline/waistline/hemline readable.
+- Composition: rule-of-thirds friendly, clean commercial framing with a little breathing room (while keeping full body + product large).
+- Finish: warm skin tones, vivid-but-natural color, fabric micro-contrast/sharpness, natural skin texture (no plastic/CGI look).
 
 Styling plan:
 - occasion: ${opts.plan.occasion}
@@ -261,7 +289,7 @@ Return ONLY the prompt text (no quotes, no JSON).
       ? "set in the BACKGROUND PHOTO"
       : `set in a photorealistic ${opts.plan.background_theme || opts.plan.occasion} background`;
     const model_clause = `one female model${opts.hasModelReference ? "" : opts.plan.model_ethnicity ? ` (prefer ${opts.plan.model_ethnicity})` : ""}`;
-    const fallback = `Photorealistic ecommerce fashion photo, ${model_clause} wearing the garment from the GARMENT REFERENCE, ${opts.plan.occasion} style, ${opts.plan.color_scheme} color palette, garment print as in reference (${opts.plan.print_style}), accessories: ${opts.plan.accessories.length ? opts.plan.accessories.join(", ") : "none"}, ${background_clause}, natural lighting, realistic fabric drape, avoid: ${avoid}.`;
+    const fallback = `Photorealistic ecommerce fashion photo (warm sunny vacation lookbook vibe), young adult female model (21–27; not older than 27; must look adult), full-body head-to-toe vertical 4:5 (include entire head and both feet/shoes; small margin; no cropping), ${model_clause} wearing the garment from the GARMENT REFERENCE, model/garment large in frame (avoid wide shot/tiny product; model fills ~80–90% height), ${opts.plan.occasion} style, ${opts.plan.color_scheme} palette, garment print as in reference (${opts.plan.print_style}), accessories: ${opts.plan.accessories.length ? opts.plan.accessories.join(", ") : "none"}, ${background_clause}, natural daylight with soft fill, 35–50mm look, crisp focus, medium contrast, visible fabric texture, avoid: ${avoid}, gritty street style, dramatic high-fashion, harsh shadows, cropped head, cropped feet, close-up portrait, half-body, extreme wide shot, middle-aged, elderly.`;
     return { prompt: fallback, rawText: String(err?.message || err) };
   }
 }
@@ -271,11 +299,13 @@ export function buildGarmentReferencePrompt(): string {
     "You are generating a photorealistic ecommerce product reference image of a garment.",
     "The input image is a GARMENT PHOTO (often on a mannequin).",
     "Create a clean, high-resolution catalog cutout of the EXACT same garment on a plain light-neutral background.",
+    "Use even, diffused studio lighting with accurate color and crisp edges (no harsh shadows).",
     "Hard rules:",
     "- Preserve the garment design exactly as in the input (color, print/pattern, logos/graphics, texture, seams, silhouette).",
     "- Do NOT add or remove design elements. Do NOT invent missing details. If unclear, keep it as-is.",
     "- Remove mannequin/body/stand and remove the original background.",
-    "- Center the garment, keep it fully visible, keep proportions realistic.",
+    "- Center the garment, keep it fully visible (no cropping), keep proportions realistic.",
+    "- Make the garment large in frame with minimal margins (product-first).",
     "- No additional text, no watermark, no new logos.",
   ].join("\n");
 }
@@ -286,9 +316,18 @@ export function buildCompositePrompt(opts: {
   hasModelReference: boolean;
   hasBackgroundReference: boolean;
 }): string {
+  const globalAvoid =
+    "cropped head, cropped feet, cut off shoes, cut off top of head, out-of-frame limbs, close-up portrait, half-body, extreme wide shot, tiny product, distant subject, gritty street style, dramatic high-fashion editorial, harsh hard shadows, moody low-key lighting, heavy film grain, CGI/cartoon look, middle-aged, elderly";
+  const avoid = [normalizeAvoidClause(opts.plan.negative_prompt), globalAvoid].filter(Boolean).join(", ");
+
   const lines: string[] = [
     "You are generating a photorealistic ecommerce fashion product photo for an online store.",
     "The product is the hero: keep the garment accurate and undistorted.",
+    "Style baseline: warm, sunny, polished, approachable, slightly editorial. Aspirational lifestyle (vacation wardrobe lookbook). Not gritty street-style; not dramatic high-fashion.",
+    "Camera & lighting: vertical 4:5 full-body, 35–50mm look, eye-level, f/3.2–f/4 separation, natural daylight with soft front-side light and gentle fill; medium contrast; warm midtones; crisp focus with visible fabric texture.",
+    "Pose direction: natural weight shift (S-curve), legs uncrossed, slight torso twist/shoulder tilt, relaxed hands lightly touching fabric/hip/railing (no clenched fists), slight head tilt, soft smile; optional subtle step/sway to show drape.",
+    "Garment presentation: wrinkle-free/steamed look, clear fit and drape, keep neckline/waistline/hemline readable; keep hair/props from covering the garment.",
+    "Composition: rule-of-thirds friendly, clean commercial framing with a little breathing room (while keeping full body + product large).",
     "IMAGE 1 is the GARMENT REFERENCE (clean catalog cutout derived from the input garment photo). Use it as the single source of truth for garment design (color, print, texture, seams, silhouette).",
   ];
 
@@ -312,7 +351,9 @@ export function buildCompositePrompt(opts: {
 
   lines.push(
     "The final image must show ONE model wearing the EXACT garment from IMAGE 1.",
-    "Frame the shot so the model is fully visible head-to-toe (no cropped head, no cropped feet).",
+    "Model age: young adult (21–27), not older than 27. The model must look clearly adult (do not depict a minor).",
+    "HARD FRAMING RULE: full-body head-to-toe. Include the entire head and both feet/shoes in frame (no cropping at any edge).",
+    "Product scale: keep the model/garment large in frame (avoid wide shots). Aim for the model to fill ~80–90% of the image height while still fully visible head-to-toe. Ensure fabric texture/print details are readable.",
     "Keep the entire garment visible and unobstructed (do not hide it behind props or hair).",
     "Do not change the garment design (no recolor, no print changes, no new logos/graphics, no missing straps).",
     "No added text overlays, no watermarks, no brand logos in the background.",
@@ -333,7 +374,7 @@ export function buildCompositePrompt(opts: {
   }
 
   lines.push(opts.finalPrompt);
-  lines.push(`Avoid: ${opts.plan.negative_prompt}`);
+  lines.push(`Avoid: ${avoid}`);
   return lines.join("\n").trim();
 }
 
@@ -355,4 +396,3 @@ export function computeTimingsMs(timings: Record<string, number>): {
   const totalMs = textLlmMs + imageGenMs;
   return { textLlmMs, imageGenMs, totalMs };
 }
-
