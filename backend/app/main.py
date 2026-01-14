@@ -47,6 +47,38 @@ def _parse_tags(raw: str | None) -> list[str]:
     return tags
 
 
+def _detect_common_image_mime_type(image_bytes: bytes) -> str | None:
+    if not image_bytes:
+        return None
+
+    # PNG
+    if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+
+    # JPEG
+    if image_bytes.startswith(b"\xff\xd8"):
+        return "image/jpeg"
+
+    # WEBP
+    if len(image_bytes) >= 12 and image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP":
+        return "image/webp"
+
+    return None
+
+
+def _normalize_supported_image_mime_type(*, upload: UploadFile, data: bytes) -> str:
+    supported = {"image/png", "image/jpeg", "image/webp"}
+    raw = (upload.content_type or "").split(";")[0].strip().lower()
+    detected = _detect_common_image_mime_type(data)
+    mime_type = detected or raw or "application/octet-stream"
+    if mime_type not in supported:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported image type ({mime_type}). Please upload a PNG, JPEG, or WEBP image.",
+        )
+    return mime_type
+
+
 def _asset_to_out(asset_type: str, rec) -> AssetOut:
     image_url = f"/api/assets/{asset_type}s/{rec.id}/image"
     return AssetOut(
@@ -107,7 +139,7 @@ def create_app() -> FastAPI:
         if not image_bytes:
             raise HTTPException(status_code=400, detail="Uploaded image is empty")
 
-        mime_type = (image.content_type or "application/octet-stream").split(";")[0].strip()
+        mime_type = _normalize_supported_image_mime_type(upload=image, data=image_bytes)
         asset_id, rel_path = allocate_asset_path(
             asset_type="background", filename=image.filename, mime_type=mime_type
         )
@@ -136,7 +168,7 @@ def create_app() -> FastAPI:
         if not image_bytes:
             raise HTTPException(status_code=400, detail="Uploaded image is empty")
 
-        mime_type = (image.content_type or "application/octet-stream").split(";")[0].strip()
+        mime_type = _normalize_supported_image_mime_type(upload=image, data=image_bytes)
         asset_id, rel_path = allocate_asset_path(
             asset_type="model", filename=image.filename, mime_type=mime_type
         )
@@ -169,6 +201,7 @@ def create_app() -> FastAPI:
         accessories: str | None = Form(None),
         include_debug: bool = Form(False),
     ) -> JSONResponse:
+        request_t0 = time.perf_counter()
         if not settings.gemini_api_key:
             return JSONResponse(
                 {
@@ -177,14 +210,17 @@ def create_app() -> FastAPI:
                 status_code=500,
             )
 
-        garment_mime_type = (
-            (garment_photo.content_type or "image/jpeg").split(";")[0].strip()
-        )
         garment_bytes = await garment_photo.read()
         if not garment_bytes:
             return JSONResponse(
                 {"error": "Uploaded garment_photo is empty"}, status_code=400
             )
+        try:
+            garment_mime_type = _normalize_supported_image_mime_type(
+                upload=garment_photo, data=garment_bytes
+            )
+        except HTTPException as exc:
+            return JSONResponse({"error": str(exc.detail)}, status_code=exc.status_code)
 
         request_id = uuid.uuid4().hex
         options = GenerateLookUserOptions(
@@ -414,13 +450,25 @@ def create_app() -> FastAPI:
         composite_lines.extend(
             [
                 "The final image must show ONE model wearing the EXACT garment from IMAGE 1.",
+                "Frame the shot so the model is fully visible head-to-toe (no cropped head, no cropped feet).",
+                "Keep the entire garment visible and unobstructed (do not hide it behind props or hair).",
                 "Do not change the garment design (no recolor, no print changes, no new logos/graphics, no missing straps).",
                 "No added text overlays, no watermarks, no brand logos in the background.",
                 "Keep anatomy correct. No extra people. No duplicates.",
-                ctx.final_prompt,
-                f"Avoid: {ctx.plan.negative_prompt}",
             ]
         )
+        if ctx.plan.accessories:
+            composite_lines.append(
+                "Include these accessories (keep realistic and visible, but do not cover the garment): "
+                + ", ".join(ctx.plan.accessories)
+            )
+        if ctx.plan.style_keywords:
+            composite_lines.append("Style keywords: " + ", ".join(ctx.plan.style_keywords))
+        if ctx.plan.model_styling_notes:
+            composite_lines.append("Model styling notes: " + ctx.plan.model_styling_notes)
+
+        composite_lines.append(ctx.final_prompt)
+        composite_lines.append(f"Avoid: {ctx.plan.negative_prompt}")
         ctx.composite_prompt = "\n".join(composite_lines).strip()
 
         t0 = time.perf_counter()
@@ -436,6 +484,11 @@ def create_app() -> FastAPI:
         except GeminiError as exc:
             return JSONResponse({"error": str(exc)}, status_code=502)
         ctx.timings["composite"] = time.perf_counter() - t0
+
+        ctx.timings["total"] = time.perf_counter() - request_t0
+        api_stage_keys = ("plan", "garment_reference", "final_prompt", "composite")
+        ctx.timings["api_total"] = sum(ctx.timings.get(k, 0.0) for k in api_stage_keys)
+        timings_ms = {k: int(round(v * 1000)) for k, v in ctx.timings.items()}
 
         chosen_payload = {
             "occasion": ctx.plan.occasion,
@@ -462,6 +515,7 @@ def create_app() -> FastAPI:
             debug_payload = {
                 "request_id": ctx.request_id,
                 "timings": ctx.timings,
+                "timings_ms": timings_ms,
                 "plan_error": ctx.plan_error,
                 "final_prompt": ctx.final_prompt,
                 "composite_prompt": ctx.composite_prompt,
@@ -475,6 +529,7 @@ def create_app() -> FastAPI:
                 "mime_type": ctx.result.mime_type,
                 "image_base64": ctx.result.image_base64,
                 "chosen": chosen_payload,
+                "timings_ms": timings_ms,
                 "debug": debug_payload,
             }
         )

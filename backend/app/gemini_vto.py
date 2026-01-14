@@ -10,6 +10,26 @@ import urllib.request
 import urllib.error
 
 
+_PROMPT_QUALITY_MARKER = "Photo quality requirements:"
+_PROMPT_PHOTOSHOOT_QUALITY_BLOCK = """
+Photo quality requirements:
+- Photorealistic, high-resolution, ultra-sharp detail, crisp focus (no motion blur).
+- Professional high-end fashion/product photoshoot look (studio-grade lighting, clean color, high dynamic range).
+- Accurate textures (skin/fabric), natural shadows, realistic perspective and depth.
+- Shot on a high-end camera with a premium lens; clean, natural bokeh where applicable.
+- Avoid: low-res, blurry, noise, compression artifacts, over-smoothing/plastic look, CGI/cartoon look.
+""".strip()
+
+
+def _enhance_image_prompt(prompt_text: str) -> str:
+    prompt_text = (prompt_text or "").strip()
+    if not prompt_text:
+        return _PROMPT_PHOTOSHOOT_QUALITY_BLOCK
+    if _PROMPT_QUALITY_MARKER in prompt_text:
+        return prompt_text
+    return f"{prompt_text}\n\n{_PROMPT_PHOTOSHOOT_QUALITY_BLOCK}"
+
+
 def normalize_gemini_model_name(model: str) -> str:
     model = (model or "").strip()
     if not model:
@@ -22,13 +42,14 @@ def normalize_gemini_model_name(model: str) -> str:
 def build_virtual_try_on_prompt(*, garment_description: str) -> str:
     garment_description = garment_description.strip() or "the GARMENT from the GARMENT PHOTO"
     return (
-        "You are performing a virtual try-on.\n"
+        "You are performing a virtual try-on for an ecommerce fashion photoshoot.\n"
         "Use the PERSON PHOTO as the base image.\n"
         f"Replace the person's current outfit with {garment_description} from the GARMENT PHOTO.\n"
-        "Preserve the person's identity, face, pose, body shape, skin tone, and the background.\n"
-        "Keep lighting consistent and make the garment fit naturally with realistic folds.\n"
-        "Do not add extra people, extra limbs, text, watermarks, or logos.\n"
-        "Return a single photorealistic image."
+        "Preserve the person's identity (face, hair), pose, body shape, skin tone, and the original background.\n"
+        "Match the original scene lighting and perspective; keep shadows consistent.\n"
+        "Make the garment fit naturally with realistic fabric drape, folds, and texture.\n"
+        "Do not add extra people or limbs. Do not add text, watermarks, or logos.\n"
+        "Return a single final image."
     )
 
 
@@ -174,6 +195,7 @@ def generate_image(
     use_image_config: bool,
     timeout_seconds: int,
 ) -> GeminiImageResult:
+    prompt_text = _enhance_image_prompt(prompt_text)
     model_name = normalize_gemini_model_name(model)
     endpoint = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent"
 
