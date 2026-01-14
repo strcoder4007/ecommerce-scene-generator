@@ -1,6 +1,6 @@
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
-type ApiError = { error: string };
+type ApiError = { error: string } | { detail: string };
 
 type Asset = {
   id: string;
@@ -12,16 +12,24 @@ type Asset = {
   created_at: string;
 };
 
-type GenerateLookResponse =
-  | {
-      mime_type: string;
-      image_base64: string;
-      chosen: any;
-      debug?: any;
-    }
-  | ApiError;
+type GenerateLookOkResponse = {
+  mime_type: string;
+  image_base64: string;
+  chosen: any;
+  timings_ms?: Record<string, number>;
+  debug?: any;
+};
+
+type GenerateLookResponse = GenerateLookOkResponse | ApiError;
 
 type PillOption = { value: string; label: string };
+
+const GENERATION_STEPS = [
+  "Getting all the configurations",
+  "Thinking",
+  "Compositing a scene",
+  "Generating image",
+] as const;
 
 function mimeToExtension(mimeType: string | null): string {
   const mt = (mimeType || "").toLowerCase().trim();
@@ -50,6 +58,56 @@ function parseTags(raw: string): string[] {
     .split(/[;,]/g)
     .map((p) => p.trim())
     .filter(Boolean);
+}
+
+async function safeReadJson<T>(resp: Response): Promise<T | null> {
+  try {
+    return (await resp.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+function pickApiErrorMessage(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const maybeAny = payload as Record<string, unknown>;
+  const error = maybeAny.error;
+  if (typeof error === "string" && error.trim()) return error.trim();
+  const detail = maybeAny.detail;
+  if (typeof detail === "string" && detail.trim()) return detail.trim();
+  return null;
+}
+
+function isGenerateLookOkResponse(payload: GenerateLookResponse | null): payload is GenerateLookOkResponse {
+  if (!payload || typeof payload !== "object") return false;
+  const maybeAny = payload as Record<string, unknown>;
+  return typeof maybeAny.mime_type === "string" && typeof maybeAny.image_base64 === "string";
+}
+
+function formatDurationMs(ms: number | null | undefined): string {
+  const safe = typeof ms === "number" && Number.isFinite(ms) ? ms : 0;
+  const seconds = safe / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const wholeMinutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds - wholeMinutes * 60);
+  return `${wholeMinutes}m ${remainingSeconds}s`;
+}
+
+function Spinner() {
+  return (
+    <svg className="spinner" viewBox="0 0 50 50" role="img" aria-label="Loading">
+      <circle className="spinnerTrack" cx="25" cy="25" r="20" fill="none" strokeWidth="5" />
+      <circle
+        className="spinnerIndicator"
+        cx="25"
+        cy="25"
+        r="20"
+        fill="none"
+        strokeWidth="5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }
 
 function InfoButton({ text }: { text: string }) {
@@ -155,6 +213,9 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<"generate" | "assets">("generate");
 
+  const bgFileInputRef = useRef<HTMLInputElement | null>(null);
+  const modelFileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [backgrounds, setBackgrounds] = useState<Asset[]>([]);
   const [models, setModels] = useState<Asset[]>([]);
   const [assetsError, setAssetsError] = useState<string | null>(null);
@@ -166,12 +227,18 @@ export default function App() {
         fetch(`${apiBaseUrl}/api/assets/backgrounds`),
         fetch(`${apiBaseUrl}/api/assets/models`),
       ]);
-      const bgData = (await bgResp.json()) as Asset[] | ApiError;
-      const modelData = (await modelResp.json()) as Asset[] | ApiError;
-      if (!bgResp.ok) throw new Error("error" in bgData ? bgData.error : "Failed to load backgrounds");
-      if (!modelResp.ok) throw new Error("error" in modelData ? modelData.error : "Failed to load models");
-      setBackgrounds(bgData as Asset[]);
-      setModels(modelData as Asset[]);
+      const bgData = await safeReadJson<Asset[] | ApiError>(bgResp);
+      const modelData = await safeReadJson<Asset[] | ApiError>(modelResp);
+      if (!bgResp.ok)
+        throw new Error(
+          pickApiErrorMessage(bgData) || `Failed to load backgrounds (${bgResp.status})`,
+        );
+      if (!modelResp.ok)
+        throw new Error(
+          pickApiErrorMessage(modelData) || `Failed to load models (${modelResp.status})`,
+        );
+      setBackgrounds((bgData ?? []) as Asset[]);
+      setModels((modelData ?? []) as Asset[]);
     } catch (err: any) {
       setAssetsError(err?.message || String(err));
     }
@@ -211,6 +278,36 @@ export default function App() {
   const [resultMimeType, setResultMimeType] = useState<string | null>(null);
   const [chosenSummary, setChosenSummary] = useState<any>(null);
   const [debugSummary, setDebugSummary] = useState<any>(null);
+  const [resultTimingsMs, setResultTimingsMs] = useState<Record<string, number> | null>(null);
+
+  const [generationStepIndex, setGenerationStepIndex] = useState(0);
+  const [generationElapsedMs, setGenerationElapsedMs] = useState(0);
+
+  useEffect(() => {
+    if (!isGenerating) {
+      setGenerationStepIndex(0);
+      setGenerationElapsedMs(0);
+      return;
+    }
+
+    const startedAt = performance.now();
+    setGenerationStepIndex(0);
+    setGenerationElapsedMs(0);
+
+    const timeouts = [
+      window.setTimeout(() => setGenerationStepIndex(1), 700),
+      window.setTimeout(() => setGenerationStepIndex(2), 2600),
+      window.setTimeout(() => setGenerationStepIndex(3), 5200),
+    ];
+    const interval = window.setInterval(() => {
+      setGenerationElapsedMs(performance.now() - startedAt);
+    }, 100);
+
+    return () => {
+      timeouts.forEach((t) => clearTimeout(t));
+      clearInterval(interval);
+    };
+  }, [isGenerating]);
 
   async function onGenerateLook(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -219,6 +316,7 @@ export default function App() {
     setResultMimeType(null);
     setChosenSummary(null);
     setDebugSummary(null);
+    setResultTimingsMs(null);
 
     if (!garmentPhoto) {
       setGenerateError("Please select a garment photo.");
@@ -291,17 +389,18 @@ export default function App() {
         method: "POST",
         body: form,
       });
-      const data = (await resp.json()) as GenerateLookResponse;
+      const data = await safeReadJson<GenerateLookResponse>(resp);
       if (!resp.ok) {
-        setGenerateError("error" in data ? data.error : `Request failed (${resp.status})`);
+        setGenerateError(pickApiErrorMessage(data) || `Request failed (${resp.status})`);
         return;
       }
-      if ("error" in data) {
-        setGenerateError(data.error);
+      if (!isGenerateLookOkResponse(data)) {
+        setGenerateError(pickApiErrorMessage(data) || "Request failed.");
         return;
       }
       setChosenSummary(data.chosen);
       setDebugSummary(data.debug ?? null);
+      setResultTimingsMs(data.timings_ms ?? null);
       setResultMimeType(data.mime_type);
       setResultDataUrl(`data:${data.mime_type};base64,${data.image_base64}`);
     } catch (err: any) {
@@ -345,9 +444,10 @@ export default function App() {
         method: "POST",
         body: form,
       });
-      const data = (await resp.json()) as Asset | ApiError;
-      if (!resp.ok) throw new Error("error" in data ? data.error : `Upload failed (${resp.status})`);
+      const data = (await safeReadJson<Asset | ApiError>(resp)) ?? { error: `Upload failed (${resp.status})` };
+      if (!resp.ok) throw new Error(pickApiErrorMessage(data) || `Upload failed (${resp.status})`);
       setBgFile(null);
+      if (bgFileInputRef.current) bgFileInputRef.current.value = "";
       setBgTitle("");
       setBgTheme("");
       setBgTags("");
@@ -378,9 +478,10 @@ export default function App() {
         method: "POST",
         body: form,
       });
-      const data = (await resp.json()) as Asset | ApiError;
-      if (!resp.ok) throw new Error("error" in data ? data.error : `Upload failed (${resp.status})`);
+      const data = (await safeReadJson<Asset | ApiError>(resp)) ?? { error: `Upload failed (${resp.status})` };
+      if (!resp.ok) throw new Error(pickApiErrorMessage(data) || `Upload failed (${resp.status})`);
       setModelFile(null);
+      if (modelFileInputRef.current) modelFileInputRef.current.value = "";
       setModelTitle("");
       setModelAssetEthnicity("");
       setModelTags("");
@@ -391,6 +492,16 @@ export default function App() {
       setModelUploading(false);
     }
   }
+
+  const timingsTextLlmMs = resultTimingsMs
+    ? (resultTimingsMs["plan"] ?? 0) + (resultTimingsMs["final_prompt"] ?? 0)
+    : 0;
+  const timingsImageGenMs = resultTimingsMs
+    ? (resultTimingsMs["garment_reference"] ?? 0) + (resultTimingsMs["composite"] ?? 0)
+    : 0;
+  const timingsTotalMs = resultTimingsMs
+    ? resultTimingsMs["api_total"] ?? timingsTextLlmMs + timingsImageGenMs
+    : 0;
 
   return (
     <div className="container">
@@ -428,9 +539,6 @@ export default function App() {
             Assets
           </button>
         </div>
-        <span className="muted">
-          Backend must have <code>GEMINI_API_KEY</code> set.
-        </span>
       </div>
 
       {activeTab === "generate" ? (
@@ -797,10 +905,38 @@ export default function App() {
               info="Your generated ecommerce scene will appear here. For best results, start with Auto settings and only lock in a background/model when you need consistency."
             />
             {isGenerating ? (
-              <div className="resultPlaceholder">
-                <div className="skeleton" style={{ height: 420 }} />
-                <div style={{ height: 10 }} />
-                <div className="skeleton" style={{ height: 14, width: "62%" }} />
+              <div className="resultPlaceholder loaderPlaceholder">
+                <div className="loader">
+                  <div className="loaderHeader">
+                    <Spinner />
+                    <div>
+                      <div className="loaderTitle">{GENERATION_STEPS[generationStepIndex]}</div>
+                      <div className="loaderSubtitle">Elapsed {formatDurationMs(generationElapsedMs)}</div>
+                    </div>
+                  </div>
+
+                  <div className="loaderSteps" aria-label="Generation progress">
+                    {GENERATION_STEPS.map((label, idx) => (
+                      <div
+                        key={label}
+                        className={
+                          idx < generationStepIndex
+                            ? "loaderStep loaderStepDone"
+                            : idx === generationStepIndex
+                              ? "loaderStep loaderStepActive"
+                              : "loaderStep"
+                        }
+                      >
+                        <div className="loaderDot" aria-hidden="true" />
+                        <div className="loaderStepText">{label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="loaderHint muted">
+                    Keep this tab open while we generate your image.
+                  </div>
+                </div>
               </div>
             ) : resultDataUrl ? (
               <>
@@ -821,13 +957,26 @@ export default function App() {
                         setResultMimeType(null);
                         setChosenSummary(null);
                         setDebugSummary(null);
+                        setResultTimingsMs(null);
                         setGenerateError(null);
                       }}
                     >
                       Clear
                     </button>
                   </div>
-                  <div className="muted">Tip: use “Debug” to inspect prompts.</div>
+                  <div className="resultActionsRight">
+                    {resultTimingsMs ? (
+                      <div className="badge" title="Time spent generating this image">
+                        <span>Text LLM</span>
+                        <code>{formatDurationMs(timingsTextLlmMs)}</code>
+                        <span>Image gen</span>
+                        <code>{formatDurationMs(timingsImageGenMs)}</code>
+                        <span>Total</span>
+                        <code>{formatDurationMs(timingsTotalMs)}</code>
+                      </div>
+                    ) : null}
+                    <div className="muted">Tip: use “Debug” to inspect prompts.</div>
+                  </div>
                 </div>
                 <img src={resultDataUrl} alt="Generated look" />
               </>
@@ -853,7 +1002,12 @@ export default function App() {
                   label="Image"
                   info="Upload a background reference image (e.g., studio wall, beach, garden). You can select it from the Generate tab via thumbnails."
                 />
-                <input type="file" accept="image/*" onChange={(e) => setBgFile(e.target.files?.[0] ?? null)} />
+                <input
+                  ref={bgFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setBgFile(e.target.files?.[0] ?? null)}
+                />
               </div>
               <div style={{ height: 12 }} />
               <div className="row">
@@ -899,7 +1053,12 @@ export default function App() {
                   label="Image"
                   info="Upload a model reference image to keep the same identity/face/pose across generations."
                 />
-                <input type="file" accept="image/*" onChange={(e) => setModelFile(e.target.files?.[0] ?? null)} />
+                <input
+                  ref={modelFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setModelFile(e.target.files?.[0] ?? null)}
+                />
               </div>
               <div style={{ height: 12 }} />
               <div className="row">
