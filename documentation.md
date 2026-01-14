@@ -1,5 +1,12 @@
 Automating the AI Fashion Design Workflow
 
+Repo Implementation Notes (Static / Client-Side)
+
+- The app is implemented as a 100% client-side Vue 3 dashboard (Vite). It builds to static HTML/CSS/JS in `frontend/dist/` for GitHub Pages.
+- The user provides their own Gemini API key in the UI (“BYO key”). The key is stored locally in the browser (localStorage) and used for direct Gemini API calls.
+- Background/model “assets” are stored locally in the browser (IndexedDB) and are selectable via the Assets tab.
+- The Python backend in `backend/` is legacy and not required for the static deployment path.
+
 Introduction: Modern fashion design increasingly uses AI for visualization. In the current manual pipeline, designers photograph a white dress prototype, then use a text-to-image model (e.g. Google’s Gemini “Nano Banana” Pro
 blog.google
 ) to add prints and colors. They manually select matching backgrounds (e.g. beach scenes for beachwear) and model figures (e.g. an “Indian” or “Russian” female model) via prompting. The selected dress, model, and background are combined in prompts to Nano Banana for final images. Human designers then review the outputs for defects (blur, anatomy errors, etc.) before approving and generating additional angles. This process is time-consuming and labor-intensive. Research suggests fully automated pipelines for fashion imagery are both feasible and valuable: for example, recent work uses structured prompts (style, occasion, wearer) into an LLM + diffusion model pipeline to generate custom outfit images
@@ -47,7 +54,7 @@ Human Oversight: Keep humans in the loop for key decisions. For example, the sys
 arxiv.org
 .
 
-User-Friendly Interface: Provide a React-based dashboard where designers select options (dress image, style, model, background) and trigger the pipeline. They see suggestions, can preview results, and intervene as needed.
+User-Friendly Interface: Provide a Vue 3 dashboard where designers select options (dress image, style, model, background) and trigger the pipeline. They see suggestions, can preview results, and intervene as needed.
 
 Overall, the automated pipeline aims to greatly reduce manual effort and speed up design iteration, leveraging AI where it excels (pattern generation, recommendation, quality checking) and humans where subjective taste is needed.
 
@@ -92,7 +99,7 @@ Human Review and Feedback: Throughout the process, the designer retains oversigh
 
 Dashboard (UI/UX) Design
 
-The user interface will be a React web application. Key components:
+The user interface is a Vue 3 web application (client-side static). Key components:
 
 Image Uploader & Metadata Form: Designers upload the base dress PNG and enter metadata (dress category, desired style keywords).
 
@@ -106,13 +113,13 @@ Output Gallery: Displays the final generated images (with different angles). Any
 
 Prompt History & Logs: An optional panel shows past prompts, seeds, and results for traceability and reproducibility.
 
-React is chosen for its responsive UI capabilities. The frontend will communicate with a backend service (Node.js or Python/Flask) via REST or WebSocket. The backend orchestrates calls to the image generation API, the VLM service, and the database.
+Vue is chosen for its responsive UI capabilities. In the static version of this repo, the frontend calls the Gemini API directly using a user-provided key (no backend service).
 
 Technology Stack
 
-Frontend: React (JSX, Material-UI or similar for components).
+Frontend: Vue 3 (Vite + TypeScript).
 
-Backend/API: Node.js (Express) or Python (FastAPI) to handle requests. This server will load/store prompts and interface with the AI models.
+Backend/API: none (static client-side app for GitHub Pages). A backend/serverless proxy can be added later if you want to keep API keys off the client.
 
 AI Models:
 
@@ -128,7 +135,7 @@ medium.com
 stability.ai
 .
 
-Data Storage: A database (e.g. PostgreSQL or MongoDB) to store image assets, prompts, user selections, and logs. A vector database (like Pinecone or FAISS) can optionally index image embeddings for fast similarity search (useful for model/background matching).
+Data Storage: Browser storage (IndexedDB) can store local assets and preferences for a single user/device.
 
 Infrastructure: Cloud GPU instances to run models, containerized deployment (Docker) for portability.
 

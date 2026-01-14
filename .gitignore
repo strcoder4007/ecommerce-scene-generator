@@ -6,7 +6,6 @@ __pycache__/
 venv/
 
 node_modules/
-dist/
 *.tsbuildinfo
 
 .env
@@ -14,3 +13,4 @@ dist/
 
 backend/storage/
 .codex
+.vscode
