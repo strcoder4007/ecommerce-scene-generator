@@ -14,6 +14,7 @@ export type LookPlan = {
   print_style: string;
   style_keywords: string[];
   background_theme: string;
+  footwear: string;
   accessories: string[];
   negative_prompt: string;
   model_ethnicity: string;
@@ -25,9 +26,21 @@ export type LookOverrides = {
   color_scheme?: string | null;
   print_style?: string | null;
   background_theme?: string | null;
+  footwear?: string | null;
   model_ethnicity?: string | null;
   model_styling_notes?: string | null;
 };
+
+const MODEL_AGE_RULE =
+  "Model age: young adult (18–23), not older than 23. The model must look clearly adult (do not depict a minor).";
+const FULL_BODY_RULE =
+  "HARD FRAMING: full-body head-to-toe. Include the entire head and both feet/shoes in frame (no cropping at any edge). Leave a small margin above head and below feet.";
+const GARMENT_FIDELITY_RULE =
+  "Garment fidelity: match the garment reference exactly (silhouette, neckline, sleeves, hem, print/pattern, logos/graphics, seams, fabric texture). Do not add extra fabric, extra layers, or new design elements.";
+const BACKGROUND_LOCK_RULE =
+  "Background fidelity: if a BACKGROUND PHOTO is provided, treat it as locked and match it closely (do not switch to a different background; do not add/remove major background objects).";
+const GLOBAL_AVOID =
+  "cropped head, cropped feet, cut off shoes, cut off top of head, out-of-frame limbs, close-up portrait, half-body, extreme wide shot, tiny product, distant subject, extra people, duplicated people, extra limbs, deformed hands, blur, low quality, text overlay, watermark, brand logos, extra fabric, added clothing layers, jacket, coat, cardigan, shawl, scarf, cape, gritty street style, dramatic high-fashion editorial, harsh hard shadows, moody low-key lighting, heavy film grain, CGI/cartoon look, child, teen, minor, underage, middle-aged, elderly";
 
 function normalizeAvoidClause(text: string): string {
   const trimmed = (text || "").trim();
@@ -67,6 +80,7 @@ function overrideLines(overrides: LookOverrides): string[] {
     ["color_scheme", overrides.color_scheme],
     ["print_style", overrides.print_style],
     ["background_theme", overrides.background_theme],
+    ["footwear", overrides.footwear],
     ["model_ethnicity", overrides.model_ethnicity],
     ["model_styling_notes", overrides.model_styling_notes],
   ];
@@ -106,20 +120,22 @@ Goal: propose a styling plan to generate a photorealistic, high-conversion ecomm
 - A single model wearing EXACTLY the same garment from the GARMENT PHOTO.
 - Be creative in the scene + styling while keeping it commercially usable and product-first.
 
-Style guide to follow (non-negotiable):
-- Product-first catalogue photography that still feels aspirational lifestyle (not pure studio).
-- Vibe: warm, sunny, polished, approachable, slightly editorial. Think “vacation wardrobe lookbook”.
-- Not gritty street-style; not dramatic high-fashion; no harsh moody lighting.
-- Prioritize full-body vertical framing; model head-to-toe in frame; garment clearly visible and readable (avoid tiny/distant subject).
-- Model age: young adult, not older than 23.
-- Accessories: minimal but intentional/matching (0–3), realistic; do not cover the garment.
-- Hair/makeup: natural glam, clean and commercial (defined brows, neutral lip), no extreme looks.
-- Pose notes (for model_styling_notes): natural weight-shift (S-curve), slight torso twist, relaxed hands, subtle motion if needed to show drape.
+	Style guide to follow (non-negotiable):
+	- Product-first catalogue photography that still feels aspirational lifestyle (not pure studio).
+	- Vibe: warm, sunny, polished, approachable, slightly editorial. Think “vacation wardrobe lookbook”.
+	- Not gritty street-style; not dramatic high-fashion; no harsh moody lighting.
+		- Prioritize full-body vertical framing; model head-to-toe in frame; garment clearly visible and readable (avoid tiny/distant subject).
+		- ${MODEL_AGE_RULE}
+		- Accessories: minimal but intentional/matching (0–3), realistic; do not cover the garment.
+		- Footwear: pick ONE realistic footwear choice that matches the occasion + styling (e.g., white sneakers, strappy heels, sandals). Keep it commercially usable and clearly visible in a full-body shot.
+		- Hair/makeup: natural glam, clean and commercial (defined brows, neutral lip), no extreme looks.
+		- Pose notes (for model_styling_notes): natural weight-shift (S-curve), slight torso twist, relaxed hands, subtle motion if needed to show drape.
 
-Hard rules:
-- Output ONLY valid JSON (no markdown, no commentary).
-- Keep the garment design accurate: do NOT invent or change neckline, sleeves, hem, print/pattern, logos/graphics, or fabric texture.
-- Do not hallucinate specific garment details you cannot see; when uncertain, use "as-is".
+	Hard rules:
+	- Output ONLY valid JSON (no markdown, no commentary).
+	- Keep the garment design accurate: do NOT invent or change neckline, sleeves, hem, print/pattern, logos/graphics, or fabric texture.
+	- Never add new garment elements (no extra fabric, no added layers, no jackets/shawls/scarves).
+	- Do not hallucinate specific garment details you cannot see; when uncertain, use "as-is".
 
 If the user provided overrides, respect them:
 ${overridesBlock}
@@ -132,13 +148,14 @@ Return JSON with exactly these keys:
   "occasion": string (examples: "beachwear", "party", "evening", "casual"),
   "color_scheme": string (short; for the overall scene palette; must NOT imply recoloring the garment),
   "print_style": string (short; describe the garment print if visible, otherwise "as-is"),
-  "style_keywords": array of strings (3-8 items, short),
-  "background_theme": string,
-  "accessories": array of strings (0-6 items; realistic),
-  "negative_prompt": string (short avoid clause; include things like cropped head/feet, tiny/distant product, close-up portrait, extra limbs, blur, text/watermarks, and any style-guide violations),
-  "model_ethnicity": string,
-  "model_styling_notes": string (short; hair/makeup/jewelry guidance)
-}`.trim();
+	  "style_keywords": array of strings (3-8 items, short),
+	  "background_theme": string,
+		  "footwear": string (one footwear choice; can be empty if unsure),
+		  "accessories": array of strings (0-6 items; realistic),
+		  "negative_prompt": string (short avoid clause; include things like cropped head/feet, tiny/distant product, close-up portrait, extra limbs, blur, text/watermarks, extra fabric/layers, and any style-guide violations),
+		  "model_ethnicity": string,
+		  "model_styling_notes": string (short; hair/makeup/jewelry guidance)
+		}`.trim();
 
   const result = await generateText({
     apiKey: opts.apiKey,
@@ -163,10 +180,14 @@ Return JSON with exactly these keys:
     coerceStr(opts.userOverrides.background_theme) ||
     coerceStr(rawJson.background_theme) ||
     occasion;
+  const footwear =
+    coerceStr(opts.userOverrides.footwear) ||
+    coerceStr(rawJson.footwear) ||
+    "";
   const accessories = coerceStrList(rawJson.accessories);
   const negative_prompt =
     coerceStr(rawJson.negative_prompt) ||
-    "blurry, low quality, incorrect garment, altered design, wrong print, extra limbs, deformed hands, text overlay, watermark";
+    "blurry, low quality, cropped head, cropped feet, incorrect garment, altered design, extra fabric, added layers, wrong print, extra limbs, deformed hands, extra people, text overlay, watermark";
   const model_ethnicity =
     coerceStr(opts.userOverrides.model_ethnicity) || coerceStr(rawJson.model_ethnicity) || "";
   const model_styling_notes =
@@ -181,6 +202,7 @@ Return JSON with exactly these keys:
       print_style,
       style_keywords,
       background_theme,
+      footwear,
       accessories,
       negative_prompt,
       model_ethnicity,
@@ -229,10 +251,10 @@ export async function generateFinalPrompt(opts: {
     : "a suitable female fashion model";
 
   const background_instruction = opts.hasBackgroundReference
-    ? "Use the BACKGROUND PHOTO as the setting."
+    ? `${BACKGROUND_LOCK_RULE} Keep wording generic: say “in the provided background photo” (do not invent a new location).`
     : `No background reference is provided; invent a photorealistic setting matching: ${opts.plan.background_theme || opts.plan.occasion}.`;
   const model_instruction = opts.hasModelReference
-    ? "Use the MODEL PHOTO as identity/pose reference."
+    ? "Use the MODEL PHOTO as identity reference and keep the same person. Do not invent face/hair details in text; keep wording generic: “match the provided model photo”."
     : `No model reference is provided; invent a suitable female fashion model.${opts.plan.model_ethnicity ? ` Prefer ethnicity: ${opts.plan.model_ethnicity}.` : ""}`;
 
   const prompt = `
@@ -243,11 +265,13 @@ Constraints:
 - The output image must show a single female model wearing EXACTLY the garment from the GARMENT REFERENCE image (the garment may be photographed on a mannequin; ignore the mannequin).
 - ${background_instruction} (match: ${background_desc}).
 - ${model_instruction} (match: ${model_desc}).
-- Model age: young adult (18-23), not older than 23. The model must look clearly adult (do not depict a minor).
-- HARD FRAMING: full-body head-to-toe. Include the entire head and both feet/shoes in frame (no cropping at any edge). Leave a small margin above head and below feet.
+- ${MODEL_AGE_RULE}
+- ${FULL_BODY_RULE}
 - Product scale: keep the model/garment large in frame (avoid wide shots where the product looks tiny). Aim for the model to fill ~80–90% of the image height while still fully visible head-to-toe. Ensure fabric texture/print details are readable.
 - Keep anatomy correct, no extra limbs, no blur, no duplicated people.
-- Do not add any new text/watermarks/logos (especially in the background). Preserve garment design from the reference (do not invent extra straps, patterns, or recolor it).
+- Do not add any new text/watermarks/logos (especially in the background).
+- ${GARMENT_FIDELITY_RULE}
+- If a background reference is provided, do not describe a different background. If a model reference is provided, do not describe hair/face—defer to the reference images.
 
 Style guide baseline to incorporate (must match this look):
 - Product-first catalogue photography with aspirational lifestyle feel (not pure studio).
@@ -260,12 +284,13 @@ Style guide baseline to incorporate (must match this look):
 - Finish: warm skin tones, vivid-but-natural color, fabric micro-contrast/sharpness, natural skin texture (no plastic/CGI look).
 
 Styling plan:
-- occasion: ${opts.plan.occasion}
-- color_scheme: ${opts.plan.color_scheme}
-- print_style: ${opts.plan.print_style}
-- style_keywords: ${opts.plan.style_keywords.length ? opts.plan.style_keywords.join(", ") : "(none)"}
-- accessories: ${opts.plan.accessories.length ? opts.plan.accessories.join(", ") : "(none)"}
-- model_styling_notes: ${opts.plan.model_styling_notes || "(none)"}
+	- occasion: ${opts.plan.occasion}
+	- color_scheme: ${opts.plan.color_scheme}
+	- print_style: ${opts.plan.print_style}
+	- style_keywords: ${opts.plan.style_keywords.length ? opts.plan.style_keywords.join(", ") : "(none)"}
+	- footwear: ${opts.plan.footwear || "(auto)"}
+	- accessories: ${opts.plan.accessories.length ? opts.plan.accessories.join(", ") : "(none)"}
+	- model_styling_notes: ${opts.plan.model_styling_notes || "(none)"}
 
 Negative guidance to incorporate (as a short avoid clause): ${opts.plan.negative_prompt}
 
@@ -289,7 +314,7 @@ Return ONLY the prompt text (no quotes, no JSON).
       ? "set in the BACKGROUND PHOTO"
       : `set in a photorealistic ${opts.plan.background_theme || opts.plan.occasion} background`;
     const model_clause = `one female model${opts.hasModelReference ? "" : opts.plan.model_ethnicity ? ` (prefer ${opts.plan.model_ethnicity})` : ""}`;
-    const fallback = `Photorealistic ecommerce fashion photo (warm sunny vacation lookbook vibe), young adult female model (18-23; not older than 23; must look adult), full-body head-to-toe vertical 4:5 (include entire head and both feet/shoes; small margin; no cropping), ${model_clause} wearing the garment from the GARMENT REFERENCE, model/garment large in frame (avoid wide shot/tiny product; model fills ~80–90% height), ${opts.plan.occasion} style, ${opts.plan.color_scheme} palette, garment print as in reference (${opts.plan.print_style}), accessories: ${opts.plan.accessories.length ? opts.plan.accessories.join(", ") : "none"}, ${background_clause}, natural daylight with soft fill, 35–50mm look, crisp focus, medium contrast, visible fabric texture, avoid: ${avoid}, gritty street style, dramatic high-fashion, harsh shadows, cropped head, cropped feet, close-up portrait, half-body, extreme wide shot, middle-aged, elderly.`;
+	    const fallback = `Photorealistic ecommerce fashion photo (warm sunny vacation lookbook vibe), young adult female model (18–23; not older than 23; must look adult), full-body head-to-toe vertical 4:5 (include entire head and both feet/shoes; small margin; no cropping), ${model_clause} wearing EXACTLY the garment from the GARMENT REFERENCE (no extra fabric/layers; no design changes), model/garment large in frame (avoid wide shot/tiny product; model fills ~80–90% height), ${opts.plan.occasion} style, ${opts.plan.color_scheme} palette, garment print as in reference (${opts.plan.print_style}), footwear: ${opts.plan.footwear || "auto"}, accessories: ${opts.plan.accessories.length ? opts.plan.accessories.join(", ") : "none"}, ${background_clause}, natural daylight with soft fill, 35–50mm look, crisp focus, medium contrast, visible fabric texture, avoid: ${avoid}, ${GLOBAL_AVOID}.`;
     return { prompt: fallback, rawText: String(err?.message || err) };
   }
 }
@@ -302,7 +327,7 @@ export function buildGarmentReferencePrompt(): string {
     "Use even, diffused studio lighting with accurate color and crisp edges (no harsh shadows).",
     "Hard rules:",
     "- Preserve the garment design exactly as in the input (color, print/pattern, logos/graphics, texture, seams, silhouette).",
-    "- Do NOT add or remove design elements. Do NOT invent missing details. If unclear, keep it as-is.",
+    "- Do NOT add or remove design elements. Do NOT invent missing details. Do NOT add extra fabric/layers/straps. If unclear, keep it as-is.",
     "- Remove mannequin/body/stand and remove the original background.",
     "- Center the garment, keep it fully visible (no cropping), keep proportions realistic.",
     "- Make the garment large in frame with minimal margins (product-first).",
@@ -316,9 +341,7 @@ export function buildCompositePrompt(opts: {
   hasModelReference: boolean;
   hasBackgroundReference: boolean;
 }): string {
-  const globalAvoid =
-    "cropped head, cropped feet, cut off shoes, cut off top of head, out-of-frame limbs, close-up portrait, half-body, extreme wide shot, tiny product, distant subject, gritty street style, dramatic high-fashion editorial, harsh hard shadows, moody low-key lighting, heavy film grain, CGI/cartoon look, middle-aged, elderly";
-  const avoid = [normalizeAvoidClause(opts.plan.negative_prompt), globalAvoid].filter(Boolean).join(", ");
+  const avoid = [normalizeAvoidClause(opts.plan.negative_prompt), GLOBAL_AVOID].filter(Boolean).join(", ");
 
   const lines: string[] = [
     "You are generating a photorealistic ecommerce fashion product photo for an online store.",
@@ -332,7 +355,7 @@ export function buildCompositePrompt(opts: {
   ];
 
   if (opts.hasModelReference) {
-    lines.push("IMAGE 2 is the MODEL PHOTO (use her identity, face, pose, and body proportions).");
+    lines.push("IMAGE 2 is the MODEL PHOTO. You MUST match her identity/face/hair, pose, and body proportions.");
   } else {
     lines.push(
       "No model reference is provided: create a suitable single female fashion model"
@@ -342,7 +365,9 @@ export function buildCompositePrompt(opts: {
   }
 
   if (opts.hasBackgroundReference) {
-    lines.push("The LAST image is the BACKGROUND PHOTO (use it as the scene).");
+    lines.push(
+      `The LAST image is the BACKGROUND PHOTO. ${BACKGROUND_LOCK_RULE}`,
+    );
   } else {
     lines.push(
       `No background reference is provided: create a photorealistic background matching ${opts.plan.background_theme || opts.plan.occasion}.`,
@@ -351,20 +376,23 @@ export function buildCompositePrompt(opts: {
 
   lines.push(
     "The final image must show ONE model wearing the EXACT garment from IMAGE 1.",
-    "Model age: young adult (21–27), not older than 27. The model must look clearly adult (do not depict a minor).",
-    "HARD FRAMING RULE: full-body head-to-toe. Include the entire head and both feet/shoes in frame (no cropping at any edge).",
+    MODEL_AGE_RULE,
+    FULL_BODY_RULE,
     "Product scale: keep the model/garment large in frame (avoid wide shots). Aim for the model to fill ~80–90% of the image height while still fully visible head-to-toe. Ensure fabric texture/print details are readable.",
     "Keep the entire garment visible and unobstructed (do not hide it behind props or hair).",
-    "Do not change the garment design (no recolor, no print changes, no new logos/graphics, no missing straps).",
+    GARMENT_FIDELITY_RULE,
     "No added text overlays, no watermarks, no brand logos in the background.",
     "Keep anatomy correct. No extra people. No duplicates.",
   );
 
   if (opts.plan.accessories.length) {
     lines.push(
-      "Include these accessories (keep realistic and visible, but do not cover the garment): "
+      "MUST include these accessories (keep realistic and visible, but do not cover the garment): "
         + opts.plan.accessories.join(", "),
     );
+  }
+  if (opts.plan.footwear) {
+    lines.push("Footwear: " + opts.plan.footwear + " (ensure shoes are visible in the full-body frame).");
   }
   if (opts.plan.style_keywords.length) {
     lines.push("Style keywords: " + opts.plan.style_keywords.join(", "));
@@ -373,16 +401,126 @@ export function buildCompositePrompt(opts: {
     lines.push("Model styling notes: " + opts.plan.model_styling_notes);
   }
 
-  lines.push(opts.finalPrompt);
+  if ((opts.finalPrompt || "").trim()) {
+    lines.push(
+      "Draft text prompt to incorporate. If it conflicts with any image reference or rules above, ignore the conflicting parts:",
+    );
+    lines.push(opts.finalPrompt.trim());
+  }
+
+  lines.push(
+    "FINAL CHECK (non-negotiable):",
+    FULL_BODY_RULE,
+    MODEL_AGE_RULE,
+    "Garment must match IMAGE 1 exactly (no extra fabric, no added layers, no design changes).",
+    opts.hasBackgroundReference ? BACKGROUND_LOCK_RULE : "Background must match the scene direction above.",
+    "One person only; correct anatomy; no extra limbs; no duplicates.",
+  );
   lines.push(`Avoid: ${avoid}`);
   return lines.join("\n").trim();
 }
 
-export function applyFreeformOverrides(plan: LookPlan, opts: { styleKeywords?: string[]; accessories?: string[] }): LookPlan {
+export type MultiAngleKind = "side" | "back";
+
+export function buildMultiAnglePrompt(opts: {
+  angle: MultiAngleKind;
+  plan: LookPlan;
+  finalPrompt: string;
+  garmentAngleCount: number;
+  hasModelReference: boolean;
+  hasBackgroundReference: boolean;
+}): string {
+  const avoid = [normalizeAvoidClause(opts.plan.negative_prompt), GLOBAL_AVOID].filter(Boolean).join(", ");
+
+  const garmentAngles = Math.max(0, Math.min(4, Math.floor(opts.garmentAngleCount || 0)));
+  const mainImageIndex = 2 + garmentAngles;
+  const modelIndex = opts.hasModelReference ? mainImageIndex + 1 : null;
+  const backgroundIndex = opts.hasBackgroundReference ? mainImageIndex + (opts.hasModelReference ? 2 : 1) : null;
+
+  const lines: string[] = [
+    "You are generating additional angles for an ecommerce fashion product photo.",
+    "Goal: create an additional view of the SAME look as the MAIN RESULT image, while keeping the garment design accurate.",
+    "Style baseline: warm, sunny, polished, approachable, slightly editorial. Aspirational lifestyle (vacation wardrobe lookbook). Not gritty street-style; not dramatic high-fashion.",
+    "Camera & lighting: vertical 4:5 full-body, 35–50mm look, eye-level, f/3.2–f/4 separation, natural daylight with soft front-side light and gentle fill; medium contrast; warm midtones; crisp focus with visible fabric texture.",
+    FULL_BODY_RULE,
+    "Product scale: keep the model/garment large in frame (avoid wide shots). Aim for the model to fill ~80–90% of the image height while still fully visible head-to-toe.",
+    "Keep the entire garment visible and unobstructed (no hair/props covering key details).",
+    MODEL_AGE_RULE,
+    GARMENT_FIDELITY_RULE,
+    "Keep anatomy correct. One person only.",
+    "IMAGE 1 is the GARMENT REFERENCE CUTOUT (source of truth for garment design).",
+  ];
+
+  if (garmentAngles) {
+    lines.push(
+      `IMAGES 2–${1 + garmentAngles} are additional GARMENT PHOTOS of the SAME garment (different angles). Use them only to preserve back/side details; ignore mannequin/body/stand and ignore those photos' original backgrounds.`,
+    );
+  }
+
+  lines.push(`IMAGE ${mainImageIndex} is the MAIN RESULT image (match the same model identity, hair/makeup, accessories, lighting, and scene).`);
+
+  if (modelIndex) {
+    lines.push(`IMAGE ${modelIndex} is the MODEL PHOTO (optional; use it for identity/face consistency).`);
+  }
+  if (backgroundIndex) {
+    lines.push(`IMAGE ${backgroundIndex} is the BACKGROUND PHOTO (optional; use it for scene consistency).`);
+  }
+
+  if (opts.angle === "side") {
+    lines.push(
+      "Requested view: SIDE VIEW.",
+      "Pose: natural ecommerce side/3-4 turn. Rotate the body ~60–80° from camera, subtle weight shift (S-curve), one foot slightly forward, relaxed arms (one hand lightly on hip or along thigh), shoulders relaxed, soft smile.",
+      "Composition: show the garment silhouette and side seam clearly; do not obscure the garment with hair or arms.",
+    );
+  } else {
+    lines.push(
+      "Requested view: BACK VIEW.",
+      "Pose: natural ecommerce back view. Model facing away from camera, slight head turn 15–30° (profile/3-4), arms relaxed slightly away from body to reveal the garment back, gentle weight shift, soft expression.",
+      "Composition: show the garment back details clearly; move hair aside so the back of the garment is visible.",
+    );
+  }
+
+  if (opts.plan.accessories.length) {
+    lines.push(
+      "Accessories (keep consistent with the main image and do not cover the garment): " + opts.plan.accessories.join(", "),
+    );
+  }
+  if (opts.plan.footwear) {
+    lines.push("Footwear (keep consistent with the main image): " + opts.plan.footwear);
+  }
+  if (opts.plan.style_keywords.length) {
+    lines.push("Style keywords: " + opts.plan.style_keywords.join(", "));
+  }
+  if (opts.plan.model_styling_notes) {
+    lines.push("Model styling notes: " + opts.plan.model_styling_notes);
+  }
+
+  if ((opts.finalPrompt || "").trim()) {
+    lines.push("Baseline description to keep consistent (override only the pose/viewpoint as requested):");
+    lines.push(opts.finalPrompt.trim());
+  }
+
+  lines.push(
+    "FINAL CHECK (non-negotiable):",
+    FULL_BODY_RULE,
+    MODEL_AGE_RULE,
+    "Garment must match IMAGE 1 and the MAIN RESULT (no extra fabric, no added layers, no design changes).",
+    "Match the same background/scene as the MAIN RESULT (and BACKGROUND PHOTO if provided).",
+    "One person only; correct anatomy; no extra limbs; no duplicates.",
+  );
+  lines.push(`Avoid: ${avoid}`);
+  return lines.join("\n").trim();
+}
+
+export function applyFreeformOverrides(
+  plan: LookPlan,
+  opts: { styleKeywords?: string[]; accessories?: string[]; footwear?: string | null },
+): LookPlan {
   return {
     ...plan,
     ...(opts.styleKeywords && opts.styleKeywords.length ? { style_keywords: opts.styleKeywords } : {}),
     ...(opts.accessories && opts.accessories.length ? { accessories: opts.accessories } : {}),
+    ...(opts.footwear && opts.footwear.trim() ? { footwear: opts.footwear.trim() } : {}),
   };
 }
 

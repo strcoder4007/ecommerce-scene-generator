@@ -137,12 +137,14 @@
 	        <div class="divider storyboardEditorDivider" aria-hidden="true" />
 
 	        <div class="storyboardEditorCardBody">
-	        <div class="grid storyBoard">
-	        <div class="card">
-	        <form @submit.prevent="onGenerateLook">
-	          <fieldset class="formFieldset" :disabled="isGenerating">
-	            <div>
-	              <FieldLabel
+	          <div class="grid storyBoard">
+	            <form class="storyboardForm" @submit.prevent="onGenerateLook">
+	              <fieldset class="formFieldset" :disabled="isGenerating">
+	                <div class="storyboardCards">
+	                  <div class="card">
+	                    <div class="sectionTitle" style="margin-top: 0">Garment photos</div>
+	                    <div>
+	                      <FieldLabel
 		              htmlFor="garmentPhoto"
 		              label="Garment photos"
 		              info="Upload 1–4 photos of the SAME garment (front/side/back). The generator will preserve the garment silhouette and create a photorealistic ecommerce scene around it."
@@ -172,13 +174,14 @@
 	            </div>
 	          </div>
 
-	          <div style="height: 18px" />
+	                  </div>
 
-          <div class="sectionTitle">Creative Direction</div>
+	                  <div class="card">
+	                    <div class="sectionTitle" style="margin-top: 0">Creative Direction</div>
 
           <div>
             <FieldLabel
-              label="Occasion (optional)"
+              label="Occasion"
               info="Sets the vibe for styling and scene (lighting, accessories, background mood). Pick a preset and optionally add extra detail (e.g., “sunset beach”, “nightclub”, “wedding guest”)."
             />
             <PillRadioGroup
@@ -211,7 +214,7 @@
           <div class="row">
             <div>
               <FieldLabel
-                label="Color scheme (optional)"
+                label="Color scheme"
                 info="The overall color palette you want the model + background to lean into. This helps the generator choose complementary lighting and scene colors (e.g., “pastel”, “neutral”, “red & white”, “monochrome”)."
               />
               <input
@@ -223,7 +226,7 @@
             </div>
             <div>
               <FieldLabel
-                label="Accessories (optional)"
+                label="Accessories"
                 info="Optional add-ons to make the scene feel complete (e.g., sunglasses, tote bag, heels). Keep it realistic and not too many items."
               />
               <input
@@ -235,12 +238,43 @@
             </div>
           </div>
 
-          <div style="height: 18px" />
+	          <div style="height: 18px" />
 
-          <div>
-            <FieldLabel
-              label="Style keywords (optional)"
-              info="A few words describing the aesthetic. This influences pose, lighting, props, and overall styling (e.g., minimal, luxury, streetwear). Choose a direction and optionally add extra keywords."
+	          <div>
+	            <FieldLabel
+	              label="Footwear"
+	              info="Choose footwear and optionally add details. If you set both, they will be combined."
+	            />
+	            <PillRadioGroup
+	              name="footwear"
+	              :model-value="activeConfig.footwearPreset"
+	              @update:model-value="activeConfig.footwearPreset = $event"
+	              :options="[
+	                { value: '', label: 'Auto' },
+	                { value: 'sneakers', label: 'Sneakers' },
+	                { value: 'heels', label: 'Heels' },
+	                { value: 'sandals', label: 'Sandals' },
+	                { value: 'boots', label: 'Boots' },
+	                { value: 'flats', label: 'Flats' },
+	                { value: 'loafers', label: 'Loafers' },
+	                { value: 'custom', label: 'Custom' },
+	              ]"
+	            />
+	            <div style="height: 14px" />
+	            <input
+	              class="control"
+	              type="text"
+	              v-model="activeConfig.footwearDetails"
+	              placeholder="Optional: add details (e.g., white sneakers, nude heels, leather boots)"
+	            />
+	          </div>
+
+	          <div style="height: 18px" />
+
+	          <div>
+	            <FieldLabel
+	              label="Style keywords"
+	              info="A few words describing the aesthetic. This influences pose, lighting, props, and overall styling (e.g., minimal, luxury, streetwear). Choose a direction and optionally add extra keywords."
             />
             <PillRadioGroup
               name="styleKeywords"
@@ -268,17 +302,14 @@
             />
           </div>
 
-          <div style="height: 18px" />
+	                  </div>
 
-          <div class="divider" />
-
-          <div style="height: 18px" />
-
-          <div class="sectionTitle">Background</div>
+	                  <div class="card">
+	                    <div class="sectionTitle" style="margin-top: 0">Background</div>
 
           <div>
             <FieldLabel
-              label="Background theme (optional)"
+              label="Background theme"
               info="Describes the environment you want (e.g., studio, beach, rooftop, garden). Pick a preset and optionally add extra detail. If you select an uploaded background thumbnail below, that image will be used as the scene reference."
             />
             <PillRadioGroup
@@ -314,7 +345,7 @@
 
           <div>
             <FieldLabel
-              label="Background image (optional)"
+              label="Background image"
               info="If you have added backgrounds in the Assets tab, click a thumbnail to force a specific scene. Leave on Auto to let the generator invent a matching background."
             />
             <div v-if="backgrounds.length" class="thumbStrip">
@@ -346,17 +377,14 @@
             <div v-else class="muted">No backgrounds detected — the generator will invent one.</div>
           </div>
 
-          <div style="height: 18px" />
+	                  </div>
 
-          <div class="divider" />
-
-          <div style="height: 18px" />
-
-          <div class="sectionTitle">Model</div>
+	                  <div class="card">
+	                    <div class="sectionTitle" style="margin-top: 0">Model</div>
 
           <div>
             <FieldLabel
-              label="Model (optional)"
+              label="Model"
               info="Use this to bias the generated model (ethnicity / vibe) when you are not selecting a specific model image. Pick a preset and/or add your own description."
             />
             <PillRadioGroup
@@ -365,7 +393,7 @@
               @update:model-value="activeConfig.modelPreset = $event"
               :options="[
                 { value: '', label: 'Auto' },
-                { value: 'South Asian', label: 'South Asian' },
+                { value: 'South Asian (Indian)', label: 'Indian' },
                 { value: 'East Asian', label: 'East Asian' },
                 { value: 'Black', label: 'Black' },
                 { value: 'White / European', label: 'White / European' },
@@ -387,7 +415,7 @@
 
           <div>
             <FieldLabel
-              label="Model image (optional)"
+              label="Model image"
               info="If you have added model references in the Assets tab, click a thumbnail to use that exact identity/face/pose. Leave Auto to generate a suitable model."
             />
             <div v-if="models.length" class="thumbStrip">
@@ -421,10 +449,10 @@
 
           <div style="height: 18px" />
 
-	          <div class="row">
+	          <div>
 	            <div>
 	              <FieldLabel
-	                label="Model styling notes (optional)"
+	                label="Model styling notes"
 	                info="Pick a preset for hair/makeup/jewelry, and optionally add your own notes. If you set both, they will be combined."
 	              />
 	              <PillRadioGroup
@@ -449,26 +477,33 @@
 	                placeholder="Optional: add your own notes (hair/makeup/jewelry, vibe)"
 	              />
 	            </div>
-	            <div>
-	              <FieldLabel
-	                label="Debug (optional)"
-	                info="When enabled, the UI shows internal prompt/plan details to help iterate on results."
-              />
-              <select class="control" v-model="activeConfig.includeDebugStr">
-                <option value="no">Off</option>
-                <option value="yes">On (show prompts)</option>
-              </select>
-            </div>
-          </div>
+	          </div>
 
-          <div class="actions">
-            <button type="submit" class="btnPrimary" :disabled="isGenerating">
-              {{ isGenerating ? "Generating..." : "Generate look" }}
-            </button>
-            <button type="button" class="btnSecondary" @click="refreshAssets" :disabled="isGenerating">
-              Refresh assets
-            </button>
-          </div>
+	                  </div>
+
+	                  <div class="card">
+	                    <div class="sectionTitle" style="margin-top: 0">Generate</div>
+
+	          <div class="actions">
+	            <button type="submit" class="btnPrimary" :disabled="isGenerating">
+	              {{ isGenerating ? "Generating..." : "Generate look" }}
+	            </button>
+	            <button type="button" class="btnSecondary" @click="refreshAssets" :disabled="isGenerating">
+	              Refresh assets
+	            </button>
+	            <button
+	              type="button"
+	              class="btnGhost"
+	              :aria-pressed="activeConfig.includeDebugStr === 'yes'"
+	              :disabled="isGenerating"
+	              @click="activeConfig.includeDebugStr = activeConfig.includeDebugStr === 'yes' ? 'no' : 'yes'"
+	              title="Show/hide the internal prompts used for generation."
+	            >
+	              {{ activeConfig.includeDebugStr === "yes" ? "Debug off" : "Debug" }}
+	            </button>
+	          </div>
+
+
 
           <div v-if="assetsError" class="error">{{ assetsError }}</div>
           <div v-if="activeRuntime.generateError" class="error">{{ activeRuntime.generateError }}</div>
@@ -487,13 +522,25 @@
             <pre class="muted" style="white-space: pre-wrap">{{ JSON.stringify(activeRuntime.chosenSummary, null, 2) }}</pre>
           </div>
 
-	          <div v-if="activeRuntime.debugSummary" style="margin-top: 12px">
-	            <label>Debug</label>
-	            <pre class="muted" style="white-space: pre-wrap">{{ JSON.stringify(activeRuntime.debugSummary, null, 2) }}</pre>
-	          </div>
-	          </fieldset>
-	        </form>
-	      </div>
+		          <div v-if="activeRuntime.debugSummary && activeConfig.includeDebugStr === 'yes'" style="margin-top: 12px">
+		            <label>Prompts</label>
+		            <div v-if="activeRuntime.debugSummary.final_prompt" style="margin-top: 10px">
+		              <div class="muted" style="margin-bottom: 6px">Text prompt (LLM output)</div>
+		              <pre class="muted" style="white-space: pre-wrap">{{ activeRuntime.debugSummary.final_prompt }}</pre>
+		            </div>
+		            <div v-if="activeRuntime.debugSummary.composite_prompt" style="margin-top: 10px">
+		              <div class="muted" style="margin-bottom: 6px">Image prompt (composite)</div>
+		              <pre class="muted" style="white-space: pre-wrap">{{ activeRuntime.debugSummary.composite_prompt }}</pre>
+		            </div>
+		            <div v-if="activeRuntime.debugSummary.negative_prompt" style="margin-top: 10px">
+		              <div class="muted" style="margin-bottom: 6px">Avoid</div>
+		              <pre class="muted" style="white-space: pre-wrap">{{ activeRuntime.debugSummary.negative_prompt }}</pre>
+		            </div>
+	                  </div>
+	                  </div>
+	                </div>
+	              </fieldset>
+	            </form>
 
       <div class="card result">
         <FieldLabel
@@ -529,13 +576,6 @@
         <template v-else-if="activeRuntime.resultDataUrl">
           <div class="resultActions">
             <div class="resultActionsLeft">
-              <a
-                class="btn btnSecondary"
-                :href="activeRuntime.resultDataUrl"
-                :download="`look-${Date.now()}.${mimeToExtension(activeRuntime.resultMimeType)}`"
-              >
-                Download
-              </a>
               <button type="button" class="btnGhost" @click="clearResult">Clear</button>
             </div>
             <div class="resultActionsRight">
@@ -557,14 +597,223 @@
           >
             <img class="resultImage" :src="activeRuntime.resultDataUrl" alt="Generated look" draggable="false" />
           </div>
+          <div class="resultImageButtons">
+            <button
+              type="button"
+              class="btnGhost iconButton"
+              @click="openImageModal(activeRuntime.resultDataUrl, 'Generated look', 'Generated look')"
+              aria-label="Open generated image"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M10 10 5 5" />
+                <path d="M5 8V5H8" />
+                <path d="M14 10 19 5" />
+                <path d="M16 5h3v3" />
+                <path d="M10 14 5 19" />
+                <path d="M5 16v3h3" />
+                <path d="M14 14 19 19" />
+                <path d="M16 19h3v-3" />
+              </svg>
+            </button>
+            <a
+              class="btn btnGhost iconButton"
+              :href="activeRuntime.resultDataUrl"
+              :download="`look-${Date.now()}.${mimeToExtension(activeRuntime.resultMimeType)}`"
+              aria-label="Download generated image"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M12 3v10" />
+                <path d="M8 11l4 4 4-4" />
+                <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+              </svg>
+            </a>
+          </div>
         </template>
 
-        <div v-else class="resultPlaceholder resultEmpty">
-          <div>
-            <div class="resultEmptyTitle">Ready when you are</div>
-            <div class="muted">Upload a garment photo, then click “Generate look”.</div>
-          </div>
-        </div>
+	        <div v-else class="resultPlaceholder resultEmpty">
+	          <div>
+	            <div class="resultEmptyTitle">Ready when you are</div>
+	            <div class="muted">Upload garment photos, then click “Generate look”.</div>
+	          </div>
+	        </div>
+
+	        <div class="divider" style="margin: 18px 0" />
+
+	        <FieldLabel
+	          label="Multiple Angles"
+	          info="Generate natural ecommerce poses for side and back views, matching the same garment + model + scene as the main result."
+	        />
+
+	        <div v-if="!activeRuntime.resultDataUrl" class="muted">
+	          Generate the main image first to unlock multiple angles.
+	        </div>
+
+	        <div v-else>
+	          <div class="actions" style="justify-content: space-between">
+	            <button
+	              type="button"
+	              class="btnSecondary"
+	              @click="generateMultipleAngles"
+	              :disabled="isGenerating || activeRuntime.angles.generating"
+	            >
+	              {{ activeRuntime.angles.generating ? "Generating..." : "Generate Multiple Angles" }}
+	            </button>
+	            <button
+	              v-if="activeRuntime.angles.sideDataUrl && activeRuntime.angles.backDataUrl"
+	              type="button"
+	              class="btnPrimary"
+	              @click="downloadAllImages"
+	            >
+	              Download all images
+	            </button>
+	          </div>
+
+	          <div v-if="activeRuntime.angles.timingsMs" class="muted" style="margin-top: 10px">
+	            Side: {{ formatDurationMs(activeRuntime.angles.timingsMs.side) }} · Back:
+	            {{ formatDurationMs(activeRuntime.angles.timingsMs.back) }} · Total:
+	            {{ formatDurationMs(activeRuntime.angles.timingsMs.total) }}
+	          </div>
+
+	          <div v-if="activeRuntime.angles.error" class="error">{{ activeRuntime.angles.error }}</div>
+
+	          <div v-if="activeRuntime.angles.sideDataUrl || activeRuntime.angles.backDataUrl" class="anglesGrid">
+	            <div class="angleTile">
+	              <div class="angleTileHeader">
+	                <div class="angleTileTitle">Side view</div>
+	                <div v-if="activeRuntime.angles.sideDataUrl" class="angleTileActions">
+	                  <button
+	                    type="button"
+	                    class="btnGhost iconButton"
+	                    @click="openImageModal(activeRuntime.angles.sideDataUrl, 'Side view', 'Generated side view')"
+	                    aria-label="Open side view"
+	                  >
+	                    <svg
+	                      viewBox="0 0 24 24"
+	                      fill="none"
+	                      stroke="currentColor"
+	                      stroke-width="2"
+	                      stroke-linecap="round"
+	                      stroke-linejoin="round"
+	                      aria-hidden="true"
+	                      focusable="false"
+	                    >
+	                      <path d="M10 10 5 5" />
+	                      <path d="M5 8V5H8" />
+	                      <path d="M14 10 19 5" />
+	                      <path d="M16 5h3v3" />
+	                      <path d="M10 14 5 19" />
+	                      <path d="M5 16v3h3" />
+	                      <path d="M14 14 19 19" />
+	                      <path d="M16 19h3v-3" />
+	                    </svg>
+	                  </button>
+	                  <a
+	                    class="btn btnGhost iconButton"
+	                    :href="activeRuntime.angles.sideDataUrl"
+	                    :download="`look-side-${Date.now()}.${mimeToExtension(activeRuntime.angles.sideMimeType)}`"
+	                    aria-label="Download side view"
+	                  >
+	                    <svg
+	                      viewBox="0 0 24 24"
+	                      fill="none"
+	                      stroke="currentColor"
+	                      stroke-width="2"
+	                      stroke-linecap="round"
+	                      stroke-linejoin="round"
+	                      aria-hidden="true"
+	                      focusable="false"
+	                    >
+	                      <path d="M12 3v10" />
+	                      <path d="M8 11l4 4 4-4" />
+	                      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+	                    </svg>
+	                  </a>
+	                </div>
+	              </div>
+	              <div v-if="activeRuntime.angles.sideDataUrl" style="margin-top: 10px">
+	                <img :src="activeRuntime.angles.sideDataUrl" alt="Generated side view" draggable="false" />
+	              </div>
+	              <div v-else class="muted" style="margin-top: 10px">Not generated yet.</div>
+	            </div>
+
+	            <div class="angleTile">
+	              <div class="angleTileHeader">
+	                <div class="angleTileTitle">Back view</div>
+	                <div v-if="activeRuntime.angles.backDataUrl" class="angleTileActions">
+	                  <button
+	                    type="button"
+	                    class="btnGhost iconButton"
+	                    @click="openImageModal(activeRuntime.angles.backDataUrl, 'Back view', 'Generated back view')"
+	                    aria-label="Open back view"
+	                  >
+	                    <svg
+	                      viewBox="0 0 24 24"
+	                      fill="none"
+	                      stroke="currentColor"
+	                      stroke-width="2"
+	                      stroke-linecap="round"
+	                      stroke-linejoin="round"
+	                      aria-hidden="true"
+	                      focusable="false"
+	                    >
+	                      <path d="M10 10 5 5" />
+	                      <path d="M5 8V5H8" />
+	                      <path d="M14 10 19 5" />
+	                      <path d="M16 5h3v3" />
+	                      <path d="M10 14 5 19" />
+	                      <path d="M5 16v3h3" />
+	                      <path d="M14 14 19 19" />
+	                      <path d="M16 19h3v-3" />
+	                    </svg>
+	                  </button>
+	                  <a
+	                    class="btn btnGhost iconButton"
+	                    :href="activeRuntime.angles.backDataUrl"
+	                    :download="`look-back-${Date.now()}.${mimeToExtension(activeRuntime.angles.backMimeType)}`"
+	                    aria-label="Download back view"
+	                  >
+	                    <svg
+	                      viewBox="0 0 24 24"
+	                      fill="none"
+	                      stroke="currentColor"
+	                      stroke-width="2"
+	                      stroke-linecap="round"
+	                      stroke-linejoin="round"
+	                      aria-hidden="true"
+	                      focusable="false"
+	                    >
+	                      <path d="M12 3v10" />
+	                      <path d="M8 11l4 4 4-4" />
+	                      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+	                    </svg>
+	                  </a>
+	                </div>
+	              </div>
+	              <div v-if="activeRuntime.angles.backDataUrl" style="margin-top: 10px">
+	                <img :src="activeRuntime.angles.backDataUrl" alt="Generated back view" draggable="false" />
+	              </div>
+	              <div v-else class="muted" style="margin-top: 10px">Not generated yet.</div>
+	            </div>
+	          </div>
+	        </div>
 	      </div>
 	    </div>
 	    </div>
@@ -585,7 +834,7 @@
           <div style="height: 18px" />
           <div class="row">
             <div>
-              <FieldLabel label="Title (optional)" info="A short name to recognize this background." />
+              <FieldLabel label="Title" info="A short name to recognize this background." />
               <input class="control" v-model="bgTitle" type="text" />
             </div>
             <div>
@@ -598,7 +847,7 @@
           </div>
           <div style="height: 18px" />
           <div>
-            <FieldLabel label="Tags (optional)" info="Extra tags to help categorize assets. Use commas." />
+            <FieldLabel label="Tags" info="Extra tags to help categorize assets. Use commas." />
             <input class="control" v-model="bgTags" type="text" placeholder="comma separated" />
           </div>
           <div class="actions">
@@ -623,7 +872,7 @@
           <div style="height: 18px" />
           <div class="row">
             <div>
-              <FieldLabel label="Title (optional)" info="A short name to recognize this model." />
+              <FieldLabel label="Title" info="A short name to recognize this model." />
               <input class="control" v-model="modelTitle" type="text" />
             </div>
             <div>
@@ -636,7 +885,7 @@
           </div>
           <div style="height: 18px" />
           <div>
-            <FieldLabel label="Tags (optional)" info="Extra tags to help categorize assets. Use commas." />
+            <FieldLabel label="Tags" info="Extra tags to help categorize assets. Use commas." />
             <input class="control" v-model="modelTags" type="text" placeholder="comma separated" />
           </div>
           <div class="actions">
@@ -675,6 +924,30 @@
             </div>
           </div>
         </div>
+	      </div>
+	    </div>
+
+	    <div
+	      v-if="imageModal"
+	      class="modalOverlay"
+	      role="dialog"
+	      aria-modal="true"
+	      :aria-label="imageModal.title"
+	      @click.self="closeImageModal"
+	    >
+	      <div class="modalCard imageModalCard">
+	        <div class="imageModalHeader">
+	          <div class="modalTitle">{{ imageModal.title }}</div>
+	          <button type="button" class="btnGhost iconButton" @click="closeImageModal" aria-label="Close image">
+	            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+	              <path d="M18 6 6 18" />
+	              <path d="M6 6l12 12" />
+	            </svg>
+	          </button>
+	        </div>
+	        <div class="imageModalBody">
+	          <img :src="imageModal.src" :alt="imageModal.alt" draggable="false" />
+	        </div>
 	      </div>
 	    </div>
 
@@ -725,15 +998,16 @@ import {
   saveStoryboardsToLocalStorage,
   type StoryboardRecord,
 } from "./lib/storyboards";
-import {
-  applyFreeformOverrides,
-  buildCompositePrompt,
-  buildGarmentReferencePrompt,
-  chooseBackground,
-  chooseModel,
-  computeTimingsMs,
-  generateFinalPrompt,
-  planLookFromGarment,
+	import {
+	  applyFreeformOverrides,
+	  buildCompositePrompt,
+	  buildGarmentReferencePrompt,
+	  buildMultiAnglePrompt,
+	  chooseBackground,
+	  chooseModel,
+	  computeTimingsMs,
+	  generateFinalPrompt,
+	  planLookFromGarment,
   type AssetMeta,
   type LookPlan,
 } from "./lib/pipeline";
@@ -784,29 +1058,65 @@ watch(
   { flush: "post" },
 );
 
-	type StoryboardRuntime = {
-	  garmentDataUrls: string[];
-	  garmentFileNames: string[];
-	  generateError: string | null;
-	  chosenSummary: any;
-	  debugSummary: any;
-	  resultDataUrl: string | null;
-	  resultMimeType: string | null;
-	  resultTimingsMs: Record<string, number> | null;
-	};
+		type StoryboardAnglesRuntime = {
+		  generating: boolean;
+		  error: string | null;
+		  sideDataUrl: string | null;
+		  sideMimeType: string | null;
+		  backDataUrl: string | null;
+		  backMimeType: string | null;
+		  timingsMs: { side: number; back: number; total: number } | null;
+		};
 
-	function createDefaultRuntime(): StoryboardRuntime {
-	  return {
-	    garmentDataUrls: [],
-	    garmentFileNames: [],
-	    generateError: null,
-	    chosenSummary: null,
-	    debugSummary: null,
-	    resultDataUrl: null,
-	    resultMimeType: null,
-	    resultTimingsMs: null,
-	  };
-	}
+		type StoryboardRuntime = {
+		  garmentDataUrls: string[];
+		  garmentFileNames: string[];
+		  garmentRefDataUrl: string | null;
+		  garmentRefMimeType: string | null;
+		  lastPlan: LookPlan | null;
+		  lastFinalPrompt: string | null;
+		  usedModelId: string | null;
+		  usedBackgroundId: string | null;
+		  angles: StoryboardAnglesRuntime;
+		  generateError: string | null;
+		  chosenSummary: any;
+		  debugSummary: any;
+		  resultDataUrl: string | null;
+		  resultMimeType: string | null;
+		  resultTimingsMs: Record<string, number> | null;
+		};
+
+		function createDefaultAnglesRuntime(): StoryboardAnglesRuntime {
+		  return {
+		    generating: false,
+		    error: null,
+		    sideDataUrl: null,
+		    sideMimeType: null,
+		    backDataUrl: null,
+		    backMimeType: null,
+		    timingsMs: null,
+		  };
+		}
+
+		function createDefaultRuntime(): StoryboardRuntime {
+		  return {
+		    garmentDataUrls: [],
+		    garmentFileNames: [],
+		    garmentRefDataUrl: null,
+		    garmentRefMimeType: null,
+		    lastPlan: null,
+		    lastFinalPrompt: null,
+		    usedModelId: null,
+		    usedBackgroundId: null,
+		    angles: createDefaultAnglesRuntime(),
+		    generateError: null,
+		    chosenSummary: null,
+		    debugSummary: null,
+		    resultDataUrl: null,
+		    resultMimeType: null,
+		    resultTimingsMs: null,
+		  };
+		}
 
 const storyboards = ref<StoryboardRecord[]>([]);
 const activeStoryboardId = ref("");
@@ -840,6 +1150,21 @@ const activeRuntime = computed(() => storyboardRuntime.value[activeStoryboardId.
 const includeDebug = computed(() => activeConfig.value.includeDebugStr === "yes");
 
 const deleteStoryboardModalOpen = ref(false);
+type ImageModalState = { src: string; title: string; alt: string };
+const imageModal = ref<ImageModalState | null>(null);
+
+function openImageModal(src: string | null | undefined, title: string, alt?: string) {
+  if (!src) return;
+  imageModal.value = { src, title, alt: alt ?? title };
+}
+
+function closeImageModal() {
+  imageModal.value = null;
+}
+
+function onGlobalKeyDown(event: KeyboardEvent) {
+  if (event.key === "Escape" && imageModal.value) closeImageModal();
+}
 
 function safeClone<T>(value: T): T {
   if (value === null || value === undefined) return value;
@@ -892,8 +1217,18 @@ function formatStoryboardTimestamp(iso: string): string {
 	  if (bgTheme) parts.push(`BG: ${bgTheme}`);
 	  if (cfg.selectedBackgroundId) parts.push("BG pinned");
 
-	  const accessories = cfg.accessories.trim();
-	  if (accessories) parts.push(`Accessories: ${accessories}`);
+		  const accessories = cfg.accessories.trim();
+		  if (accessories) parts.push(`Accessories: ${accessories}`);
+
+		  const footwear =
+		    cfg.footwearPreset === "custom"
+		      ? cfg.footwearDetails.trim()
+		      : combinePresetAndCustom({
+		          presetText: cfg.footwearPreset,
+		          customText: cfg.footwearDetails,
+		          joiner: ", ",
+		        });
+		  if (footwear) parts.push(`Footwear: ${footwear}`);
 
 	  const ethnicity =
 	    cfg.modelPreset === "custom"
@@ -955,22 +1290,36 @@ function uniqueTitle(base: string): string {
 	  generateView.value = "editor";
 	}
 
-	function duplicateActiveStoryboard() {
-	  const src = activeStoryboard.value;
-	  const dst = createStoryboardRecord({ title: uniqueTitle(`${src.title} (copy)`), config: { ...src.config } });
-	  storyboards.value.unshift(dst);
-	  storyboardRuntime.value[dst.id] = {
-	    ...createDefaultRuntime(),
-	    garmentDataUrls: [...activeRuntime.value.garmentDataUrls],
-	    garmentFileNames: [...activeRuntime.value.garmentFileNames],
-	    chosenSummary: safeClone(activeRuntime.value.chosenSummary),
-	    debugSummary: safeClone(activeRuntime.value.debugSummary),
-	    resultDataUrl: activeRuntime.value.resultDataUrl,
-	    resultMimeType: activeRuntime.value.resultMimeType,
-	    resultTimingsMs: activeRuntime.value.resultTimingsMs ? { ...activeRuntime.value.resultTimingsMs } : null,
-	  };
-	  activeStoryboardId.value = dst.id;
-	}
+		function duplicateActiveStoryboard() {
+		  const src = activeStoryboard.value;
+		  const dst = createStoryboardRecord({ title: uniqueTitle(`${src.title} (copy)`), config: { ...src.config } });
+		  storyboards.value.unshift(dst);
+		  storyboardRuntime.value[dst.id] = {
+		    ...createDefaultRuntime(),
+		    garmentDataUrls: [...activeRuntime.value.garmentDataUrls],
+		    garmentFileNames: [...activeRuntime.value.garmentFileNames],
+		    garmentRefDataUrl: activeRuntime.value.garmentRefDataUrl,
+		    garmentRefMimeType: activeRuntime.value.garmentRefMimeType,
+		    lastPlan: activeRuntime.value.lastPlan ? safeClone(activeRuntime.value.lastPlan) : null,
+		    lastFinalPrompt: activeRuntime.value.lastFinalPrompt,
+		    usedModelId: activeRuntime.value.usedModelId,
+		    usedBackgroundId: activeRuntime.value.usedBackgroundId,
+		    angles: {
+		      ...createDefaultAnglesRuntime(),
+		      sideDataUrl: activeRuntime.value.angles.sideDataUrl,
+		      sideMimeType: activeRuntime.value.angles.sideMimeType,
+		      backDataUrl: activeRuntime.value.angles.backDataUrl,
+		      backMimeType: activeRuntime.value.angles.backMimeType,
+		      timingsMs: activeRuntime.value.angles.timingsMs ? { ...activeRuntime.value.angles.timingsMs } : null,
+		    },
+		    chosenSummary: safeClone(activeRuntime.value.chosenSummary),
+		    debugSummary: safeClone(activeRuntime.value.debugSummary),
+		    resultDataUrl: activeRuntime.value.resultDataUrl,
+		    resultMimeType: activeRuntime.value.resultMimeType,
+		    resultTimingsMs: activeRuntime.value.resultTimingsMs ? { ...activeRuntime.value.resultTimingsMs } : null,
+		  };
+		  activeStoryboardId.value = dst.id;
+		}
 
 function requestDeleteActiveStoryboard() {
   if (storyboards.value.length <= 1) return;
@@ -1080,16 +1429,155 @@ function stopGenerationTimer() {
 onBeforeUnmount(() => {
   if (generationInterval) window.clearInterval(generationInterval);
   if (storyboardSaveTimer) window.clearTimeout(storyboardSaveTimer);
+  window.removeEventListener("keydown", onGlobalKeyDown);
 });
 
 function clearResult() {
   const runtime = activeRuntime.value;
   runtime.resultDataUrl = null;
   runtime.resultMimeType = null;
+  runtime.garmentRefDataUrl = null;
+  runtime.garmentRefMimeType = null;
+  runtime.lastPlan = null;
+  runtime.lastFinalPrompt = null;
+  runtime.usedModelId = null;
+  runtime.usedBackgroundId = null;
+  runtime.angles = createDefaultAnglesRuntime();
   runtime.chosenSummary = null;
   runtime.debugSummary = null;
   runtime.resultTimingsMs = null;
   runtime.generateError = null;
+}
+
+function triggerDownload(href: string, filename: string) {
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function downloadAllImages() {
+  const runtime = activeRuntime.value;
+  if (!runtime.resultDataUrl) return;
+  if (!runtime.angles.sideDataUrl || !runtime.angles.backDataUrl) return;
+
+  const ts = Date.now();
+  triggerDownload(runtime.resultDataUrl, `look-main-${ts}.${mimeToExtension(runtime.resultMimeType)}`);
+  triggerDownload(runtime.angles.sideDataUrl, `look-side-${ts}.${mimeToExtension(runtime.angles.sideMimeType)}`);
+  triggerDownload(runtime.angles.backDataUrl, `look-back-${ts}.${mimeToExtension(runtime.angles.backMimeType)}`);
+}
+
+async function generateMultipleAngles() {
+  const runtime = activeRuntime.value;
+  if (isGenerating.value) return;
+  if (runtime.angles.generating) return;
+
+  runtime.angles.error = null;
+
+  const apiKey = geminiApiKey.value.trim();
+  if (!apiKey) {
+    runtime.angles.error = "Please paste your API key (BYO key).";
+    return;
+  }
+  if (!runtime.resultDataUrl) {
+    runtime.angles.error = "Generate the main image first.";
+    return;
+  }
+  if (!runtime.garmentRefDataUrl) {
+    runtime.angles.error = "Missing garment reference. Please generate the main image again.";
+    return;
+  }
+  if (!runtime.lastPlan) {
+    runtime.angles.error = "Missing generation context. Please generate the main image again.";
+    return;
+  }
+
+  runtime.angles.generating = true;
+  runtime.angles.sideDataUrl = null;
+  runtime.angles.sideMimeType = null;
+  runtime.angles.backDataUrl = null;
+  runtime.angles.backMimeType = null;
+  runtime.angles.timingsMs = null;
+
+  try {
+    const garmentRefInline = dataUrlToInlineImage(runtime.garmentRefDataUrl);
+    const garmentAnglesInline = runtime.garmentDataUrls.map((src) => dataUrlToInlineImage(src));
+    const mainInline = dataUrlToInlineImage(runtime.resultDataUrl);
+
+    const referenceImages = [garmentRefInline, ...garmentAnglesInline, mainInline];
+    let hasModelReference = false;
+    let hasBackgroundReference = false;
+
+    if (runtime.usedModelId) {
+      const modelRef = models.value.find((m) => m.id === runtime.usedModelId) || null;
+      if (modelRef) {
+        referenceImages.push(dataUrlToInlineImage(modelRef.image_url));
+        hasModelReference = true;
+      }
+    }
+
+    if (runtime.usedBackgroundId) {
+      const bgRef = backgrounds.value.find((b) => b.id === runtime.usedBackgroundId) || null;
+      if (bgRef) {
+        referenceImages.push(dataUrlToInlineImage(bgRef.image_url));
+        hasBackgroundReference = true;
+      }
+    }
+
+    const promptBase = {
+      plan: runtime.lastPlan,
+      finalPrompt: runtime.lastFinalPrompt || "",
+      garmentAngleCount: garmentAnglesInline.length,
+      hasModelReference,
+      hasBackgroundReference,
+    } as const;
+
+    const sidePrompt = buildMultiAnglePrompt({ ...promptBase, angle: "side" });
+    const backPrompt = buildMultiAnglePrompt({ ...promptBase, angle: "back" });
+
+    const t0 = performance.now();
+    const [sideRes, backRes] = await Promise.all([
+      (async () => {
+        const t = performance.now();
+        const res = await generateImage({
+          apiKey,
+          model: "gemini-3-pro-image-preview",
+          promptText: sidePrompt,
+          images: referenceImages,
+          timeoutMs: 180_000,
+        });
+        return { res, ms: Math.round(performance.now() - t) };
+      })(),
+      (async () => {
+        const t = performance.now();
+        const res = await generateImage({
+          apiKey,
+          model: "gemini-3-pro-image-preview",
+          promptText: backPrompt,
+          images: referenceImages,
+          timeoutMs: 180_000,
+        });
+        return { res, ms: Math.round(performance.now() - t) };
+      })(),
+    ]);
+
+    runtime.angles.sideMimeType = sideRes.res.mimeType;
+    runtime.angles.sideDataUrl = `data:${sideRes.res.mimeType};base64,${sideRes.res.imageBase64}`;
+    runtime.angles.backMimeType = backRes.res.mimeType;
+    runtime.angles.backDataUrl = `data:${backRes.res.mimeType};base64,${backRes.res.imageBase64}`;
+    runtime.angles.timingsMs = {
+      side: sideRes.ms,
+      back: backRes.ms,
+      total: Math.round(performance.now() - t0),
+    };
+  } catch (err: any) {
+    runtime.angles.error = err?.message || String(err);
+  } finally {
+    runtime.angles.generating = false;
+  }
 }
 
 function onResultImagePointerMove(event: PointerEvent) {
@@ -1133,6 +1621,7 @@ async function refreshAssets() {
 
 onMounted(() => {
   void refreshAssets();
+  window.addEventListener("keydown", onGlobalKeyDown);
 });
 
 function assetMetaFromLocal(a: LocalAsset): AssetMeta {
@@ -1172,6 +1661,16 @@ const occasionFinal = computed(() =>
     : combinePresetAndCustom({
         presetText: activeConfig.value.occasionPreset,
         customText: activeConfig.value.occasionDetails,
+        joiner: ", ",
+      }),
+);
+
+const footwearFinal = computed(() =>
+  activeConfig.value.footwearPreset === "custom"
+    ? activeConfig.value.footwearDetails.trim()
+    : combinePresetAndCustom({
+        presetText: activeConfig.value.footwearPreset,
+        customText: activeConfig.value.footwearDetails,
         joiner: ", ",
       }),
 );
@@ -1251,24 +1750,43 @@ async function onGenerateLook() {
   const runtime = activeRuntime.value;
 
   runtime.generateError = null;
+  runtime.garmentRefDataUrl = null;
+  runtime.garmentRefMimeType = null;
+  runtime.lastPlan = null;
+  runtime.lastFinalPrompt = null;
+  runtime.usedModelId = null;
+  runtime.usedBackgroundId = null;
+  runtime.angles = createDefaultAnglesRuntime();
   runtime.chosenSummary = null;
   runtime.debugSummary = null;
   runtime.resultDataUrl = null;
   runtime.resultMimeType = null;
   runtime.resultTimingsMs = null;
 
-  if (!geminiApiKey.value.trim()) {
-    runtime.generateError = "Please paste your API key (BYO key).";
-    return;
-  }
-	    if (!runtime.garmentDataUrls.length) {
-	      runtime.generateError = "Please select a garment photo.";
-	      return;
-	    }
+	  if (!geminiApiKey.value.trim()) {
+	    runtime.generateError = "Please paste your API key (BYO key).";
+	    return;
+	  }
+		    if (!runtime.garmentDataUrls.length) {
+		      runtime.generateError = "Please select garment photos.";
+		      return;
+		    }
 
-  isGenerating.value = true;
-  generationStepIndex.value = 0;
-  startGenerationTimer();
+	  if (activeConfig.value.selectedBackgroundId || activeConfig.value.selectedModelId) {
+	    await refreshAssets();
+	  }
+	  if (activeConfig.value.selectedBackgroundId && !backgrounds.value.some((b) => b.id === activeConfig.value.selectedBackgroundId)) {
+	    runtime.generateError = "Selected background not found. Click “Refresh assets” and reselect it.";
+	    return;
+	  }
+	  if (activeConfig.value.selectedModelId && !models.value.some((m) => m.id === activeConfig.value.selectedModelId)) {
+	    runtime.generateError = "Selected model not found. Click “Refresh assets” and reselect it.";
+	    return;
+	  }
+
+	  isGenerating.value = true;
+	  generationStepIndex.value = 0;
+	  startGenerationTimer();
 
   const timings: Record<string, number> = {};
   const debug: any = {};
@@ -1293,13 +1811,14 @@ async function onGenerateLook() {
 
     generationStepIndex.value = 1;
 
-	    const userOverrides = {
-	      occasion: occasionFinal.value || null,
-	      color_scheme: activeConfig.value.colorScheme.trim() || null,
-	      background_theme: backgroundThemeFinal.value || null,
-	      model_ethnicity: modelEthnicityFinal.value || null,
-	      model_styling_notes: modelStylingNotesFinal.value || null,
-	    };
+		    const userOverrides = {
+		      occasion: occasionFinal.value || null,
+		      color_scheme: activeConfig.value.colorScheme.trim() || null,
+		      background_theme: backgroundThemeFinal.value || null,
+		      footwear: footwearFinal.value || null,
+		      model_ethnicity: modelEthnicityFinal.value || null,
+		      model_styling_notes: modelStylingNotesFinal.value || null,
+		    };
 
     let plan: LookPlan;
     const tPlan0 = performance.now();
@@ -1319,28 +1838,33 @@ async function onGenerateLook() {
     } catch (err: any) {
       planError = err?.message || String(err);
       const ov = userOverrides;
-      plan = {
-        occasion: ov.occasion || "casual",
-        color_scheme: ov.color_scheme || "neutral",
-        print_style: "as-is",
-        style_keywords: [],
-        background_theme: ov.background_theme || ov.occasion || "casual",
-        accessories: [],
-        negative_prompt:
-          "blurry, low quality, incorrect garment, altered design, wrong print, extra limbs, deformed hands, text overlay, watermark",
-        model_ethnicity: ov.model_ethnicity || "",
-        model_styling_notes: ov.model_styling_notes || "",
-      };
-    }
+	      plan = {
+	        occasion: ov.occasion || "casual",
+	        color_scheme: ov.color_scheme || "neutral",
+	        print_style: "as-is",
+	        style_keywords: [],
+	        background_theme: ov.background_theme || ov.occasion || "casual",
+	        footwear: ov.footwear || "",
+	        accessories: [],
+	        negative_prompt:
+	          "blurry, low quality, incorrect garment, altered design, wrong print, extra limbs, deformed hands, text overlay, watermark",
+	        model_ethnicity: ov.model_ethnicity || "",
+	        model_styling_notes: ov.model_styling_notes || "",
+	      };
+	    }
     timings.plan = Math.round(performance.now() - tPlan0);
 
-    plan = applyFreeformOverrides(plan, {
-      styleKeywords: styleKeywordsFinal.value ? parseLocalTags(styleKeywordsFinal.value) : undefined,
-      accessories: activeConfig.value.accessories.trim() ? parseLocalTags(activeConfig.value.accessories) : undefined,
-    });
+	    plan = applyFreeformOverrides(plan, {
+	      styleKeywords: styleKeywordsFinal.value ? parseLocalTags(styleKeywordsFinal.value) : undefined,
+	      accessories: activeConfig.value.accessories.trim() ? parseLocalTags(activeConfig.value.accessories) : undefined,
+	      footwear: footwearFinal.value || null,
+	    });
 
-    const chosenBg = getSelectedBackground(plan.background_theme);
-    const chosenModel = getSelectedModel(plan.model_ethnicity);
+	    const chosenBg = getSelectedBackground(plan.background_theme);
+	    const chosenModel = getSelectedModel(plan.model_ethnicity);
+	    runtime.lastPlan = safeClone(plan);
+	    runtime.usedBackgroundId = chosenBg?.id ?? null;
+	    runtime.usedModelId = chosenModel?.id ?? null;
 
     const tFinalPrompt0 = performance.now();
     const finalPromptRes = await generateFinalPrompt({
@@ -1353,8 +1877,9 @@ async function onGenerateLook() {
       hasModelReference: Boolean(chosenModel),
       timeoutMs: 120_000,
     });
-    timings.final_prompt = Math.round(performance.now() - tFinalPrompt0);
-    debug.final_prompt = finalPromptRes.prompt;
+	    timings.final_prompt = Math.round(performance.now() - tFinalPrompt0);
+	    debug.final_prompt = finalPromptRes.prompt;
+	    runtime.lastFinalPrompt = finalPromptRes.prompt;
 
     generationStepIndex.value = 2;
 
@@ -1367,9 +1892,11 @@ async function onGenerateLook() {
 	      images: garmentInlines,
 	      timeoutMs: 180_000,
 	    });
-    timings.garment_reference = Math.round(performance.now() - tGarment0);
+	    timings.garment_reference = Math.round(performance.now() - tGarment0);
+	    runtime.garmentRefMimeType = garmentRef.mimeType;
+	    runtime.garmentRefDataUrl = `data:${garmentRef.mimeType};base64,${garmentRef.imageBase64}`;
 
-    const garmentRefBytes = base64ToBytes(garmentRef.imageBase64);
+	    const garmentRefBytes = base64ToBytes(garmentRef.imageBase64);
 
     const compositeImages: Array<{ mimeType: string; data: Uint8Array }> = [
       { mimeType: garmentRef.mimeType, data: garmentRefBytes },
@@ -1413,15 +1940,16 @@ async function onGenerateLook() {
       api_total: Object.values(timings).reduce((a, b) => a + b, 0),
     };
 
-    runtime.chosenSummary = {
-      occasion: plan.occasion,
-      color_scheme: plan.color_scheme,
-      print_style: plan.print_style,
-      style_keywords: plan.style_keywords,
-      accessories: plan.accessories,
-      background_theme: plan.background_theme,
-      model_ethnicity: plan.model_ethnicity,
-      background: {
+	    runtime.chosenSummary = {
+	      occasion: plan.occasion,
+	      color_scheme: plan.color_scheme,
+	      print_style: plan.print_style,
+	      style_keywords: plan.style_keywords,
+	      footwear: plan.footwear,
+	      accessories: plan.accessories,
+	      background_theme: plan.background_theme,
+	      model_ethnicity: plan.model_ethnicity,
+	      background: {
         id: chosenBg?.id ?? null,
         title: chosenBg?.title ?? null,
         theme: chosenBg?.theme ?? null,
@@ -1433,13 +1961,11 @@ async function onGenerateLook() {
       },
     };
 
-    runtime.debugSummary = includeDebug.value
-      ? {
-          timings_ms: runtime.resultTimingsMs,
-          plan_error: planError,
-          ...debug,
-        }
-      : null;
+	    runtime.debugSummary = {
+	      timings_ms: runtime.resultTimingsMs,
+	      plan_error: planError,
+	      ...debug,
+	    };
   } catch (err: any) {
     runtime.generateError = err?.message || String(err);
   } finally {

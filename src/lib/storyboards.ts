@@ -8,6 +8,8 @@ export type StoryboardConfig = {
   occasionDetails: string;
   colorScheme: string;
   accessories: string;
+  footwearPreset: string;
+  footwearDetails: string;
   stylePreset: string;
   styleKeywordsDetails: string;
   backgroundThemePreset: string;
@@ -35,6 +37,8 @@ export function createDefaultStoryboardConfig(): StoryboardConfig {
     occasionDetails: "",
     colorScheme: "",
     accessories: "",
+    footwearPreset: "",
+    footwearDetails: "",
     stylePreset: "",
     styleKeywordsDetails: "",
     backgroundThemePreset: "",
@@ -62,6 +66,8 @@ function normalizeConfig(value: unknown): StoryboardConfig {
     occasionDetails: asString(raw.occasionDetails) ?? base.occasionDetails,
     colorScheme: asString(raw.colorScheme) ?? base.colorScheme,
     accessories: asString(raw.accessories) ?? base.accessories,
+    footwearPreset: asString(raw.footwearPreset) ?? base.footwearPreset,
+    footwearDetails: asString(raw.footwearDetails) ?? base.footwearDetails,
     stylePreset: asString(raw.stylePreset) ?? base.stylePreset,
     styleKeywordsDetails: asString(raw.styleKeywordsDetails) ?? base.styleKeywordsDetails,
     backgroundThemePreset: asString(raw.backgroundThemePreset) ?? base.backgroundThemePreset,
