@@ -374,6 +374,9 @@ label {
 
 .labelRow label {
   margin: 0;
+  font-weight: 800;
+  color: #222;
+  text-transform: uppercase;
 }
 
 .control,
@@ -638,6 +641,43 @@ pre {
 
 .previewGarments {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.previewItem {
+  position: relative;
+}
+
+.removePreviewButton {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 25px;
+  height: 25px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid #888;
+  background: transparent;
+  color: #888;
+  box-shadow: none;
+}
+
+.removePreviewButton:hover {
+  transform: none;
+  color: white;
+  background: #888;
+}
+
+.removePreviewButton svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 @media (max-width: 980px) {
@@ -917,8 +957,8 @@ pre {
 .resultImageButtons {
   margin-top: 10px;
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: 15px;
 }
 
 .anglesGrid {
@@ -970,8 +1010,8 @@ pre {
 }
 
 .sectionTitle {
-  margin: 2px 0 10px;
-  font-size: 12px;
+  margin: 2px 0 20px;
+  font-size: 13px;
   font-weight: 850;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1288,58 +1328,6 @@ pre {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.infoButton {
-  position: relative;
-  width: 22px;
-  height: 22px;
-  min-width: 22px;
-  border-radius: 999px;
-  padding: 0;
-  border: 1px solid rgba(79, 70, 229, 0.22);
-  background: rgba(79, 70, 229, 0.08);
-  color: var(--accent-700);
-  box-shadow: none;
-}
-
-.infoButton:hover {
-  transform: none;
-  box-shadow: none;
-  border-color: rgba(79, 70, 229, 0.35);
-}
-
-.infoButton svg {
-  display: block;
-  margin: auto;
-}
-
-.tooltip {
-  pointer-events: none;
-  position: absolute;
-  left: 50%;
-  top: calc(100% + 10px);
-  transform: translateX(-50%);
-  z-index: 2147483647;
-  width: min(360px, 70vw);
-  padding: 10px 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(15, 23, 42, 0.14);
-  background: rgba(255, 255, 255, 0.96);
-  color: rgba(15, 23, 42, 0.9);
-  box-shadow: var(--shadow-md);
-  font-size: 12px;
-  line-height: 1.45;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 120ms ease, visibility 120ms ease;
-  backdrop-filter: blur(10px);
-}
-
-.infoButton:hover .tooltip,
-.infoButton:focus-visible .tooltip {
-  opacity: 1;
-  visibility: visible;
 }
 
 @media (prefers-reduced-motion: reduce) {

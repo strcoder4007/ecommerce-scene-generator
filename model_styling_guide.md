@@ -36,7 +36,7 @@ Shutter / ISO: daylight ISO 100–200; shutter 1/125–1/500 (faster if handheld
 
 White balance: daylight (5200–6000K) for midday; warmer (around 4800–5200K) for golden hour.
 
-Orientation: mostly vertical (4:5 / 3:4) for e‑commerce and social; some horizontal for banners.
+Orientation: mostly vertical (9:16 / 3:4) for e‑commerce and social; some horizontal for banners.
 
 4) Lighting & Time of Day
 
@@ -80,7 +80,7 @@ Negative space: leave breathing room above head and in direction model faces to 
 
 8) Technical deliverables / output specs
 
-Primary output: vertical 4:5 (1440x2560) high-res versions.
+Primary output: vertical 9:16 (1440x2560) high-res versions.
 
 Color profile: sRGB for web; keep master TIFFs in ProPhoto or Adobe RGB for archives.
 

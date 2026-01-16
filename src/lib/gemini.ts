@@ -177,6 +177,7 @@ export async function generateImage(opts: {
   images: GeminiInlineImage[];
   timeoutMs?: number;
   temperature?: number;
+  aspectRatio?: string;
 }): Promise<GeminiImageResult> {
   const apiKey = (opts.apiKey || "").trim();
   if (!apiKey) throw new GeminiError("Missing API key.");
@@ -195,34 +196,61 @@ export async function generateImage(opts: {
     });
   }
 
-  const payload: any = {
+  const payloadBase: any = {
     contents: [{ role: "user", parts }],
     generationConfig: {
       temperature: typeof opts.temperature === "number" ? opts.temperature : 0.2,
       responseModalities: ["TEXT", "IMAGE"],
+      ...(opts.aspectRatio ? { imageConfig: { aspectRatio: opts.aspectRatio } } : {}),
     },
   };
 
-  const resp = await fetchJsonWithTimeout(
-    url,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    },
-    typeof opts.timeoutMs === "number" ? opts.timeoutMs : 180_000,
-  );
+  async function post(payload: any): Promise<any> {
+    const resp = await fetchJsonWithTimeout(
+      url,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+      typeof opts.timeoutMs === "number" ? opts.timeoutMs : 180_000,
+    );
 
-  const rawBody = await resp.text();
-  if (!resp.ok) {
-    throw new GeminiError(`Gemini API error (${resp.status}): ${rawBody.slice(0, 500)}`);
+    const rawBody = await resp.text();
+    if (!resp.ok) {
+      throw new GeminiError(`Gemini API error (${resp.status}): ${rawBody.slice(0, 500)}`);
+    }
+
+    try {
+      return JSON.parse(rawBody);
+    } catch {
+      throw new GeminiError("Gemini API returned non-JSON response.");
+    }
   }
 
   let json: any;
   try {
-    json = JSON.parse(rawBody);
-  } catch {
-    throw new GeminiError("Gemini API returned non-JSON response.");
+    json = await post(payloadBase);
+  } catch (err: any) {
+    const msg = String(err?.message || err);
+    const looksLikeUnknownField =
+      opts.aspectRatio &&
+      (msg.includes("Unknown name") ||
+        msg.includes("unknown field") ||
+        msg.includes("Invalid JSON payload") ||
+        msg.includes("imageConfig") ||
+        msg.includes("aspectRatio"));
+    if (!looksLikeUnknownField) throw err;
+
+    // Fallback: if the endpoint/model does not support aspect ratio config, retry without it.
+    const payloadFallback = {
+      ...payloadBase,
+      generationConfig: {
+        ...payloadBase.generationConfig,
+      },
+    };
+    delete payloadFallback.generationConfig.imageConfig;
+    json = await post(payloadFallback);
   }
 
   const inline = pickResponseInlineImage(json);

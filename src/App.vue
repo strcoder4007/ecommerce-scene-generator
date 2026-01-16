@@ -146,7 +146,7 @@
 	                    <div>
 	                      <FieldLabel
 		              htmlFor="garmentPhoto"
-		              label="Garment photos"
+		              label="Photos"
 		              info="Upload 1–4 photos of the SAME garment (front/side/back). The generator will preserve the garment silhouette and create a photorealistic ecommerce scene around it."
 		            />
 	            <input
@@ -162,12 +162,25 @@
 	          <div v-if="activeRuntime.garmentDataUrls.length" style="margin-top: 12px">
 	            <label>Garment preview</label>
 	            <div class="preview previewGarments">
-	              <img
+	              <div
 	                v-for="(src, idx) in activeRuntime.garmentDataUrls"
 	                :key="`${activeStoryboardId}-${idx}`"
-	                :src="src"
-	                :alt="`Garment angle ${idx + 1}`"
-	              />
+	                class="previewItem"
+	              >
+	                <img :src="src" :alt="`Garment angle ${idx + 1}`" draggable="false" />
+	                <button
+	                  type="button"
+	                  class="removePreviewButton"
+	                  @click="removeGarmentImage(idx)"
+	                  :aria-label="`Remove garment image ${idx + 1}`"
+	                  title="Remove image"
+	                >
+	                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+	                    <path d="M18 6 6 18" />
+	                    <path d="M6 6l12 12" />
+	                  </svg>
+	                </button>
+	              </div>
 	            </div>
 	            <div v-if="activeRuntime.garmentDataUrls.length < 3" class="muted" style="margin-top: 8px">
 	              Tip: upload 3–4 angles (front/side/back) for better accuracy.
@@ -188,17 +201,7 @@
               name="occasion"
               :model-value="activeConfig.occasionPreset"
               @update:model-value="activeConfig.occasionPreset = $event"
-              :options="[
-                { value: '', label: 'Auto' },
-                { value: 'beachwear', label: 'Beachwear' },
-                { value: 'party wear', label: 'Party wear' },
-                { value: 'evening', label: 'Evening' },
-                { value: 'casual', label: 'Casual' },
-                { value: 'workwear', label: 'Workwear' },
-                { value: 'resort vacation', label: 'Vacation' },
-                { value: 'pool party', label: 'Pool Party' },
-                { value: 'custom', label: 'Custom' },
-              ]"
+              :options="occasionPresetOptions"
             />
             <div style="height: 14px" />
             <input
@@ -209,7 +212,7 @@
             />
           </div>
 
-          <div style="height: 18px" />
+          <div style="height: 40px" />
 
           <div class="row">
             <div>
@@ -238,7 +241,7 @@
             </div>
           </div>
 
-	          <div style="height: 18px" />
+	          <div style="height: 40px" />
 
 	          <div>
 	            <FieldLabel
@@ -251,12 +254,18 @@
 	              @update:model-value="activeConfig.footwearPreset = $event"
 	              :options="[
 	                { value: '', label: 'Auto' },
-	                { value: 'sneakers', label: 'Sneakers' },
-	                { value: 'heels', label: 'Heels' },
-	                { value: 'sandals', label: 'Sandals' },
-	                { value: 'boots', label: 'Boots' },
-	                { value: 'flats', label: 'Flats' },
+	                { value: 'white_sneakers', label: 'White sneakers' },
+	                { value: 'chunky_sneakers', label: 'Chunky sneakers' },
+	                { value: 'strappy_heels', label: 'Strappy heels' },
+	                { value: 'block_heels', label: 'Block heels' },
+	                { value: 'minimal_sandals', label: 'Minimal sandals' },
+	                { value: 'platform_sandals', label: 'Platform sandals' },
+	                { value: 'ankle_boots', label: 'Ankle boots' },
+	                { value: 'knee_boots', label: 'Knee-high boots' },
+	                { value: 'ballet_flats', label: 'Ballet flats' },
 	                { value: 'loafers', label: 'Loafers' },
+	                { value: 'mules', label: 'Mules' },
+	                { value: 'slides', label: 'Slides' },
 	                { value: 'custom', label: 'Custom' },
 	              ]"
 	            />
@@ -269,38 +278,27 @@
 	            />
 	          </div>
 
-	          <div style="height: 18px" />
+	          <div style="height: 40px" />
 
-	          <div>
-	            <FieldLabel
-	              label="Style keywords"
-	              info="A few words describing the aesthetic. This influences pose, lighting, props, and overall styling (e.g., minimal, luxury, streetwear). Choose a direction and optionally add extra keywords."
-            />
-            <PillRadioGroup
-              name="styleKeywords"
-              :model-value="activeConfig.stylePreset"
-              @update:model-value="activeConfig.stylePreset = $event"
-              :options="[
-                { value: '', label: 'Auto' },
-                { value: 'minimal', label: 'Minimal' },
-                { value: 'streetwear', label: 'Streetwear' },
-                { value: 'luxe', label: 'Luxury' },
-                { value: 'boho', label: 'Boho' },
-                { value: 'earthy and tropical', label: 'Earthy / Tropical' },
-                { value: 'warm and vibrant', label: 'Warm & Vibrant' },
-                { value: 'romantic', label: 'Romantic' },
-                { value: 'natural glam', label: 'Natural Glam' },
-                { value: 'custom', label: 'Custom' },
-              ]"
-            />
-            <div style="height: 14px" />
-            <input
-              class="control"
-              type="text"
-              v-model="activeConfig.styleKeywordsDetails"
-              placeholder="Optional: add keywords (comma separated)"
-            />
-          </div>
+		          <div>
+		            <FieldLabel
+		              label="Overall Style"
+		              info="Pick a modern ecommerce styling direction (e.g., quiet luxury, streetwear, athleisure). You can also add extra keywords below."
+	            />
+	            <PillRadioGroup
+	              name="styleKeywords"
+	              :model-value="activeConfig.stylePreset"
+	              @update:model-value="activeConfig.stylePreset = $event"
+		              :options="stylePresetOptions"
+	            />
+	            <div style="height: 14px" />
+	            <input
+	              class="control"
+	              type="text"
+	              v-model="activeConfig.styleKeywordsDetails"
+	              placeholder="Optional: add style keywords (comma separated)"
+	            />
+	          </div>
 
 	                  </div>
 
@@ -312,26 +310,85 @@
               label="Background theme"
               info="Describes the environment you want (e.g., studio, beach, rooftop, garden). Pick a preset and optionally add extra detail. If you select an uploaded background thumbnail below, that image will be used as the scene reference."
             />
-            <PillRadioGroup
-              name="backgroundTheme"
-              :model-value="activeConfig.backgroundThemePreset"
-              @update:model-value="activeConfig.backgroundThemePreset = $event"
-              :options="[
-                { value: '', label: 'Auto' },
-                { value: 'studio', label: 'Studio' },
-                { value: 'beach', label: 'Beach' },
-                { value: 'sunset shoreline', label: 'Sunset Shoreline' },
-                { value: 'arcade', label: 'Arcade' },
-                { value: 'city street', label: 'City' },
-                { value: 'garden', label: 'Garden' },
-                { value: 'minimal', label: 'Minimal' },
-                { value: 'luxury', label: 'Luxury' },
-                { value: 'mediterranean terrace', label: 'Mediterranean Terrace' },
-                { value: 'concert', label: 'Concert' },
-                { value: 'nightclub', label: 'Nightlife' },
-                { value: 'custom', label: 'Custom' },
-              ]"
-            />
+	            <PillRadioGroup
+	              name="backgroundTheme"
+	              :model-value="activeConfig.backgroundThemePreset"
+	              @update:model-value="activeConfig.backgroundThemePreset = $event"
+	              :options="[
+	                { value: '', label: 'Auto' },
+                {
+                  value:
+                    'studio — bright modern ecommerce studio set; seamless backdrop or clean wall; soft diffused daylight; neutral tones; minimal props',
+                  label: 'Studio',
+                },
+                {
+                  value:
+                    'beach — sunny coastal beach; clean sand; gentle waves; bright natural daylight; airy vacation vibe; uncluttered background',
+                  label: 'Beach',
+                },
+	                {
+	                  value:
+	                    'sunset shoreline — golden hour beach at sunset; warm sky gradient; soft reflections; romantic coastal mood; clean framing',
+	                  label: 'Sunset Shoreline',
+	                },
+	                {
+	                  value:
+	                    'arcade — modern neon-lit arcade; colorful ambient lights; glossy floor; playful nightlife energy; clean composition with soft bokeh',
+	                  label: 'Arcade',
+	                },
+                {
+                  value:
+                    'upscale city street — modern storefronts; clean sidewalks; contemporary lifestyle vibe; soft daylight; minimal clutter; premium feel',
+                  label: 'City',
+                },
+                {
+                  value:
+                    'rooftop terrace — modern rooftop with skyline; clean railings; golden-hour or soft daylight; premium lifestyle vibe; minimal clutter',
+                  label: 'Rooftop',
+                },
+                {
+                  value:
+                    'coffee shop — modern cafe interior; warm daylight; clean tables; subtle background blur; trendy lifestyle vibe; uncluttered',
+                  label: 'Coffee shop',
+                },
+                {
+                  value:
+                    'garden — lush landscaped garden; greenery; clean stone paths; soft natural light; elegant outdoor lifestyle; subtle bokeh',
+                  label: 'Garden',
+                },
+                {
+                  value:
+                    'art gallery — minimal contemporary gallery; white walls; clean lines; soft even lighting; premium editorial vibe; uncluttered background',
+                  label: 'Gallery',
+                },
+                {
+                  value:
+                    'minimal neutral interior — light textured wall; clean lines; neutral palette; uncluttered set; soft natural daylight; calm premium vibe',
+                  label: 'Minimal',
+                },
+	                {
+	                  value:
+	                    'luxury hotel / penthouse — premium interior; marble/wood textures; tasteful decor; warm daylight; high-end lifestyle vibe; minimal clutter',
+	                  label: 'Luxury',
+	                },
+	                {
+	                  value:
+	                    'mediterranean terrace — white stucco; stone tiles; olive trees; coastal Europe resort vibe; bright sun; airy open space; clean composition',
+	                  label: 'Mediterranean Terrace',
+	                },
+	                {
+	                  value:
+	                    'concert venue — modern music venue; stage lights as soft bokeh; energetic atmosphere; keep product framing clean and readable',
+	                  label: 'Concert',
+	                },
+	                {
+	                  value:
+	                    'nightclub lounge — upscale lounge; subtle neon accents; stylish nightlife vibe; moody but clean lighting; uncluttered background',
+	                  label: 'Nightlife',
+	                },
+	                { value: 'custom', label: 'Custom' },
+	              ]"
+	            />
             <div style="height: 14px" />
             <input
               class="control"
@@ -341,7 +398,7 @@
             />
           </div>
 
-          <div style="height: 18px" />
+          <div style="height: 40px" />
 
           <div>
             <FieldLabel
@@ -399,6 +456,7 @@
                 { value: 'White / European', label: 'White / European' },
                 { value: 'Middle Eastern', label: 'Middle Eastern' },
                 { value: 'Latina', label: 'Latina' },
+                { value: 'Mixed / Diverse', label: 'Mixed / Diverse' },
                 { value: 'custom', label: 'Custom' },
               ]"
             />
@@ -411,7 +469,7 @@
             />
           </div>
 
-          <div style="height: 18px" />
+          <div style="height: 40px" />
 
           <div>
             <FieldLabel
@@ -447,7 +505,7 @@
             <div v-else class="muted">No models detected — the generator will invent one.</div>
           </div>
 
-          <div style="height: 18px" />
+          <div style="height: 40px" />
 
 	          <div>
 	            <div>
@@ -459,15 +517,7 @@
 	                name="modelStyling"
 	                :model-value="activeConfig.modelStylingPreset"
 	                @update:model-value="activeConfig.modelStylingPreset = $event"
-	                :options="[
-	                  { value: '', label: 'Auto' },
-	                  { value: 'natural glam', label: 'Natural glam' },
-	                  { value: 'minimal jewelry', label: 'Minimal jewelry' },
-	                  { value: 'hair up', label: 'Hair up' },
-	                  { value: 'beachy', label: 'Beachy' },
-	                  { value: 'sleek', label: 'Sleek' },
-	                  { value: 'custom', label: 'Custom' },
-	                ]"
+	                :options="modelStylingPresetOptions"
 	              />
 	              <div style="height: 14px" />
 	              <input
@@ -575,9 +625,6 @@
 
         <template v-else-if="activeRuntime.resultDataUrl">
           <div class="resultActions">
-            <div class="resultActionsLeft">
-              <button type="button" class="btnGhost" @click="clearResult">Clear</button>
-            </div>
             <div class="resultActionsRight">
               <div v-if="activeRuntime.resultTimingsMs" class="badge" title="Time spent generating this image">
                 <span>Thinking</span>
@@ -587,7 +634,6 @@
                 <span>Total</span>
                 <code>{{ formatDurationMs(computedTimings.totalMs) }}</code>
               </div>
-              <div class="muted">Tip: use “Debug” to inspect prompts.</div>
             </div>
           </div>
           <div
@@ -598,6 +644,28 @@
             <img class="resultImage" :src="activeRuntime.resultDataUrl" alt="Generated look" draggable="false" />
           </div>
           <div class="resultImageButtons">
+            <a
+              class="btn btnGhost iconButton"
+              style="width: 130px;"
+              :href="activeRuntime.resultDataUrl"
+              :download="`look-${Date.now()}.${mimeToExtension(activeRuntime.resultMimeType)}`"
+              aria-label="Download generated image"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M12 3v10" />
+                <path d="M8 11l4 4 4-4" />
+                <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+              </svg>&nbsp;&nbsp;Download
+            </a>
             <button
               type="button"
               class="btnGhost iconButton"
@@ -624,27 +692,6 @@
                 <path d="M16 19h3v-3" />
               </svg>
             </button>
-            <a
-              class="btn btnGhost iconButton"
-              :href="activeRuntime.resultDataUrl"
-              :download="`look-${Date.now()}.${mimeToExtension(activeRuntime.resultMimeType)}`"
-              aria-label="Download generated image"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <path d="M12 3v10" />
-                <path d="M8 11l4 4 4-4" />
-                <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-              </svg>
-            </a>
           </div>
         </template>
 
@@ -1166,6 +1213,14 @@ function onGlobalKeyDown(event: KeyboardEvent) {
   if (event.key === "Escape" && imageModal.value) closeImageModal();
 }
 
+function removeGarmentImage(index: number) {
+  const runtime = activeRuntime.value;
+  if (!runtime.garmentDataUrls.length) return;
+  if (index < 0 || index >= runtime.garmentDataUrls.length) return;
+  runtime.garmentDataUrls.splice(index, 1);
+  runtime.garmentFileNames.splice(index, 1);
+}
+
 function safeClone<T>(value: T): T {
   if (value === null || value === undefined) return value;
   try {
@@ -1189,17 +1244,23 @@ function formatStoryboardTimestamp(iso: string): string {
 	  const cfg = sb.config;
 	  const parts: string[] = [];
 
-	  const occasion =
-	    cfg.occasionPreset === "custom"
-	      ? cfg.occasionDetails.trim()
-	      : combinePresetAndCustom({ presetText: cfg.occasionPreset, customText: cfg.occasionDetails, joiner: ", " });
-	  if (occasion) parts.push(`Occasion: ${occasion}`);
+		  const occasionPresetLabel =
+		    cfg.occasionPreset && cfg.occasionPreset !== "custom"
+		      ? occasionPresetLabelByValue[cfg.occasionPreset] ?? cfg.occasionPreset
+		      : "";
+		  const occasion =
+		    cfg.occasionPreset === "custom"
+		      ? cfg.occasionDetails.trim()
+		      : combinePresetAndCustom({ presetText: occasionPresetLabel, customText: cfg.occasionDetails, joiner: ", " });
+		  if (occasion) parts.push(`Occasion: ${occasion}`);
 
 	  const color = cfg.colorScheme.trim();
 	  if (color) parts.push(`Colors: ${color}`);
 
 	  const stylePresetText =
-	    cfg.stylePreset && cfg.stylePreset !== "custom" ? stylePresetKeywords[cfg.stylePreset] ?? cfg.stylePreset : "";
+	    cfg.stylePreset && cfg.stylePreset !== "custom"
+	      ? stylePresetLabelByValue[cfg.stylePreset] ?? cfg.stylePreset
+	      : "";
 	  const styleKeywords =
 	    cfg.stylePreset === "custom"
 	      ? cfg.styleKeywordsDetails.trim()
@@ -1220,15 +1281,19 @@ function formatStoryboardTimestamp(iso: string): string {
 		  const accessories = cfg.accessories.trim();
 		  if (accessories) parts.push(`Accessories: ${accessories}`);
 
-		  const footwear =
-		    cfg.footwearPreset === "custom"
-		      ? cfg.footwearDetails.trim()
-		      : combinePresetAndCustom({
-		          presetText: cfg.footwearPreset,
-		          customText: cfg.footwearDetails,
-		          joiner: ", ",
-		        });
-		  if (footwear) parts.push(`Footwear: ${footwear}`);
+			  const footwearPresetLabel =
+			    cfg.footwearPreset && cfg.footwearPreset !== "custom"
+			      ? footwearPresetLabels[cfg.footwearPreset] ?? cfg.footwearPreset
+			      : "";
+			  const footwear =
+			    cfg.footwearPreset === "custom"
+			      ? cfg.footwearDetails.trim()
+			      : combinePresetAndCustom({
+			          presetText: footwearPresetLabel,
+			          customText: cfg.footwearDetails,
+			          joiner: ", ",
+			        });
+			  if (footwear) parts.push(`Footwear: ${footwear}`);
 
 	  const ethnicity =
 	    cfg.modelPreset === "custom"
@@ -1237,10 +1302,10 @@ function formatStoryboardTimestamp(iso: string): string {
 	  if (ethnicity) parts.push(`Model: ${ethnicity}`);
 	  if (cfg.selectedModelId) parts.push("Model pinned");
 
-	  const stylingPresetText =
-	    cfg.modelStylingPreset && cfg.modelStylingPreset !== "custom"
-	      ? modelStylingPresetKeywords[cfg.modelStylingPreset] ?? cfg.modelStylingPreset
-	      : "";
+		  const stylingPresetText =
+		    cfg.modelStylingPreset && cfg.modelStylingPreset !== "custom"
+		      ? modelStylingPresetLabelByValue[cfg.modelStylingPreset] ?? cfg.modelStylingPreset
+		      : "";
 	  const styling =
 	    cfg.modelStylingPreset === "custom"
 	      ? cfg.modelStylingNotes.trim()
@@ -1394,14 +1459,22 @@ const garmentFileInputRef = ref<HTMLInputElement | null>(null);
 	  runtime.generateError = null;
 
 	  if (!files.length) {
-	    runtime.garmentDataUrls = [];
-	    runtime.garmentFileNames = [];
+	    if (input) input.value = "";
 	    return;
 	  }
 
-	  const limited = files.slice(0, 4);
-	  runtime.garmentFileNames = limited.map((f) => f.name || "garment");
-	  runtime.garmentDataUrls = await Promise.all(limited.map((f) => fileToDataUrl(f)));
+	  const MAX = 4;
+	  const remaining = Math.max(0, MAX - runtime.garmentDataUrls.length);
+	  if (!remaining) {
+	    runtime.generateError = "You can upload up to 4 garment photos. Remove one to add more.";
+	    if (input) input.value = "";
+	    return;
+	  }
+
+	  const limited = files.slice(0, remaining);
+	  const dataUrls = await Promise.all(limited.map((f) => fileToDataUrl(f)));
+	  runtime.garmentFileNames.push(...limited.map((f) => f.name || "garment"));
+	  runtime.garmentDataUrls.push(...dataUrls);
 
 	  if (input) input.value = "";
 	}
@@ -1542,24 +1615,26 @@ async function generateMultipleAngles() {
     const [sideRes, backRes] = await Promise.all([
       (async () => {
         const t = performance.now();
-        const res = await generateImage({
-          apiKey,
-          model: "gemini-3-pro-image-preview",
-          promptText: sidePrompt,
-          images: referenceImages,
-          timeoutMs: 180_000,
-        });
+	        const res = await generateImage({
+	          apiKey,
+	          model: "gemini-3-pro-image-preview",
+	          promptText: sidePrompt,
+	          images: referenceImages,
+	          aspectRatio: "9:16",
+	          timeoutMs: 180_000,
+	        });
         return { res, ms: Math.round(performance.now() - t) };
       })(),
       (async () => {
         const t = performance.now();
-        const res = await generateImage({
-          apiKey,
-          model: "gemini-3-pro-image-preview",
-          promptText: backPrompt,
-          images: referenceImages,
-          timeoutMs: 180_000,
-        });
+	        const res = await generateImage({
+	          apiKey,
+	          model: "gemini-3-pro-image-preview",
+	          promptText: backPrompt,
+	          images: referenceImages,
+	          aspectRatio: "9:16",
+	          timeoutMs: 180_000,
+	        });
         return { res, ms: Math.round(performance.now() - t) };
       })(),
     ]);
@@ -1655,6 +1730,57 @@ function getSelectedModel(planEthnicity: string): LocalAsset | null {
 }
 
 // Derived inputs
+const occasionPresetOptions: Array<{ value: string; label: string }> = [
+  { value: "", label: "Auto" },
+  {
+    value:
+      "everyday casual daytime street style; modern ecommerce look; clean natural daylight; approachable, effortless vibe",
+    label: "Everyday",
+  },
+  {
+    value:
+      "weekend brunch daytime; trendy polished casual; bright natural light; relaxed upscale vibe; clean composition",
+    label: "Brunch",
+  },
+  {
+    value:
+      "date night evening; chic elevated styling; flattering silhouette; warm cinematic lighting; premium nightlife mood",
+    label: "Date night",
+  },
+  {
+    value:
+      "night out nightlife; bold trendy going-out look; city lights or neon bokeh; confident, fashion-forward vibe",
+    label: "Night out",
+  },
+  {
+    value:
+      "music festival outdoors; youthful playful energy; street-style vibe; sunlit daytime; fun accessories, not cluttered",
+    label: "Festival",
+  },
+  {
+    value:
+      "vacation / resort lifestyle; breezy sun-kissed look; relaxed luxury; airy atmosphere; bright natural light",
+    label: "Vacation / Resort",
+  },
+  {
+    value:
+      "beachwear coastal; sunny seaside environment; clean sand and gentle water; airy warm-weather vibe; uncluttered",
+    label: "Beachwear",
+  },
+  {
+    value:
+      "modern workwear; office-ready smart casual; polished and professional; clean interior; soft diffused daylight",
+    label: "Work / Office",
+  },
+  { value: "custom", label: "Custom" },
+];
+
+const occasionPresetLabelByValue: Record<string, string> = Object.fromEntries(
+  occasionPresetOptions
+    .filter((o) => o.value && o.value !== "custom")
+    .map((o) => [o.value, o.label]),
+);
+
 const occasionFinal = computed(() =>
   activeConfig.value.occasionPreset === "custom"
     ? activeConfig.value.occasionDetails.trim()
@@ -1665,30 +1791,105 @@ const occasionFinal = computed(() =>
       }),
 );
 
+const footwearPresetLabels: Record<string, string> = {
+  white_sneakers: "White sneakers",
+  chunky_sneakers: "Chunky sneakers",
+  strappy_heels: "Strappy heels",
+  block_heels: "Block heels",
+  minimal_sandals: "Minimal sandals",
+  platform_sandals: "Platform sandals",
+  ankle_boots: "Ankle boots",
+  knee_boots: "Knee-high boots",
+  ballet_flats: "Ballet flats",
+  loafers: "Loafers",
+  mules: "Mules",
+  slides: "Slides",
+};
+
+const footwearPresetKeywords: Record<string, string> = {
+  white_sneakers: "clean white sneakers, modern, minimal, ecommerce-friendly",
+  chunky_sneakers: "chunky sneakers, trendy, streetwear-leaning, modern",
+  strappy_heels: "strappy heels, sleek, going-out, elegant",
+  block_heels: "block heels, comfortable, modern, polished",
+  minimal_sandals: "minimal sandals, neutral, clean, warm-weather",
+  platform_sandals: "platform sandals, trendy, bold, fashion-forward",
+  ankle_boots: "ankle boots, modern, sleek, versatile",
+  knee_boots: "knee-high boots, statement, sleek, fashion-forward",
+  ballet_flats: "ballet flats, feminine, classic, minimal",
+  loafers: "loafers, smart casual, modern, polished",
+  mules: "mules, chic, minimal, elevated casual",
+  slides: "slides, casual, modern, warm-weather",
+};
+
 const footwearFinal = computed(() =>
   activeConfig.value.footwearPreset === "custom"
     ? activeConfig.value.footwearDetails.trim()
     : combinePresetAndCustom({
-        presetText: activeConfig.value.footwearPreset,
+        presetText: footwearPresetKeywords[activeConfig.value.footwearPreset] ?? activeConfig.value.footwearPreset,
         customText: activeConfig.value.footwearDetails,
         joiner: ", ",
       }),
 );
 
-const stylePresetKeywords: Record<string, string> = {
-  minimal: "minimal, clean, modern",
-  streetwear: "streetwear, edgy, urban",
-  luxe: "luxury, premium, editorial",
-  boho: "boho, relaxed, earthy",
-  vintage: "vintage, retro",
-  sporty: "sporty, athleisure",
-  romantic: "romantic, feminine",
-  edgy: "edgy, bold, high-contrast",
-};
+const stylePresetOptions: Array<{ value: string; label: string }> = [
+  { value: "", label: "Auto" },
+  {
+    value:
+      "minimal clean modern styling; premium basics; crisp lines; neutral palette; no loud logos; ecommerce lookbook vibe",
+    label: "Minimal / Clean",
+  },
+  {
+    value:
+      "quiet luxury; understated tailoring; premium fabrics; refined proportions; neutral/earth tones; no flashy branding",
+    label: "Quiet luxury",
+  },
+  {
+    value:
+      "classic timeless styling; wardrobe staples; polished and modern; clean lines; subtle elegance; premium feel",
+    label: "Classic / Timeless",
+  },
+  {
+    value:
+      "contemporary streetwear; urban modern; relaxed silhouette; trendy styling; bold but clean; ecommerce editorial vibe",
+    label: "Streetwear",
+  },
+  {
+    value:
+      "boho relaxed airy styling; earthy textures; soft movement; natural materials; effortless, sunlit lifestyle vibe",
+    label: "Boho",
+  },
+  {
+    value:
+      "romantic feminine styling; soft delicate details; graceful silhouette; flattering look; light airy mood; tasteful",
+    label: "Romantic / Feminine",
+  },
+  {
+    value:
+      "vintage / Y2K inspired; playful nostalgic energy; early-2000s vibe; trendy styling; clean modern execution",
+    label: "Vintage / Y2K",
+  },
+  {
+    value:
+      "coastal resort lifestyle; breezy sun-kissed styling; linen textures; relaxed luxury; Mediterranean vacation vibe",
+    label: "Coastal / Resort",
+  },
+  {
+    value:
+      "edgy bold styling; high-contrast palette; confident modern vibe; statement accessories (minimal count); clean framing",
+    label: "Edgy / Bold",
+  },
+  { value: "custom", label: "Custom" },
+];
+
+const stylePresetLabelByValue: Record<string, string> = Object.fromEntries(
+  stylePresetOptions
+    .filter((o) => o.value && o.value !== "custom")
+    .map((o) => [o.value, o.label]),
+);
 
 const stylePresetText = computed(() =>
   activeConfig.value.stylePreset && activeConfig.value.stylePreset !== "custom"
-    ? stylePresetKeywords[activeConfig.value.stylePreset] ?? activeConfig.value.stylePreset
+    ? activeConfig.value.stylePreset
     : "",
 );
 
@@ -1722,17 +1923,48 @@ const backgroundThemeFinal = computed(() =>
 	      }),
 	);
 
-	const modelStylingPresetKeywords: Record<string, string> = {
-	  "natural glam": "natural glam makeup, clean dewy skin, minimal jewelry",
-	  "minimal jewelry": "minimal jewelry, clean makeup, polished hair",
-	  "hair up": "hair up (sleek bun or ponytail), minimal jewelry, natural makeup",
-	  "beachy": "beachy waves, sun-kissed natural makeup, minimal jewelry",
-	  "sleek": "sleek straight hair, defined brows, neutral lip, minimal jewelry",
-	};
+const modelStylingPresetOptions: Array<{ value: string; label: string }> = [
+  { value: "", label: "Auto" },
+  {
+    value:
+      "natural glam makeup; fresh dewy skin; softly defined eyes; subtle lip; polished but effortless; ecommerce-friendly",
+    label: "Natural glam",
+  },
+  {
+    value:
+      "soft glam; slightly more defined eye makeup; luminous skin; refined look; editorial but wearable; premium finish",
+    label: "Soft glam",
+  },
+  {
+    value:
+      "minimal jewelry; small hoops or studs; delicate necklace; understated accessories; premium, clean styling",
+    label: "Minimal jewelry",
+  },
+  {
+    value: "hair up; clean bun or sleek ponytail; tidy flyaways; modern polished styling; premium look",
+    label: "Hair up",
+  },
+  {
+    value: "sleek hair; straight or slicked-back; glossy finish; modern editorial styling; premium feel",
+    label: "Sleek",
+  },
+  {
+    value:
+      "beachy styling; loose natural waves; sun-kissed vibe; natural makeup; minimal jewelry; airy warm-weather mood",
+    label: "Beachy",
+  },
+  { value: "custom", label: "Custom" },
+];
+
+const modelStylingPresetLabelByValue: Record<string, string> = Object.fromEntries(
+  modelStylingPresetOptions
+    .filter((o) => o.value && o.value !== "custom")
+    .map((o) => [o.value, o.label]),
+);
 
 	const modelStylingPresetText = computed(() =>
 	  activeConfig.value.modelStylingPreset && activeConfig.value.modelStylingPreset !== "custom"
-	    ? modelStylingPresetKeywords[activeConfig.value.modelStylingPreset] ?? activeConfig.value.modelStylingPreset
+	    ? activeConfig.value.modelStylingPreset
 	    : "",
 	);
 
@@ -1885,13 +2117,14 @@ async function onGenerateLook() {
 
 	    const garmentRefPrompt = buildGarmentReferencePrompt();
 	    const tGarment0 = performance.now();
-	    const garmentRef = await generateImage({
-	      apiKey: geminiApiKey.value,
-	      model: "gemini-3-pro-image-preview",
-	      promptText: garmentRefPrompt,
-	      images: garmentInlines,
-	      timeoutMs: 180_000,
-	    });
+		    const garmentRef = await generateImage({
+		      apiKey: geminiApiKey.value,
+		      model: "gemini-3-pro-image-preview",
+		      promptText: garmentRefPrompt,
+		      images: garmentInlines,
+		      aspectRatio: "9:16",
+		      timeoutMs: 180_000,
+		    });
 	    timings.garment_reference = Math.round(performance.now() - tGarment0);
 	    runtime.garmentRefMimeType = garmentRef.mimeType;
 	    runtime.garmentRefDataUrl = `data:${garmentRef.mimeType};base64,${garmentRef.imageBase64}`;
@@ -1923,13 +2156,14 @@ async function onGenerateLook() {
 
     generationStepIndex.value = 3;
     const tComposite0 = performance.now();
-    const composite = await generateImage({
-      apiKey: geminiApiKey.value,
-      model: "gemini-3-pro-image-preview",
-      promptText: compositePrompt,
-      images: compositeImages,
-      timeoutMs: 180_000,
-    });
+	    const composite = await generateImage({
+	      apiKey: geminiApiKey.value,
+	      model: "gemini-3-pro-image-preview",
+	      promptText: compositePrompt,
+	      images: compositeImages,
+	      aspectRatio: "9:16",
+	      timeoutMs: 180_000,
+	    });
     timings.composite = Math.round(performance.now() - tComposite0);
 
     runtime.resultMimeType = composite.mimeType;
