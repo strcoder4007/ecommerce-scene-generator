@@ -7,815 +7,105 @@
           Upload a garment image → auto-pick (or invent) model/background → generate a photorealistic look.
         </p>
       </div>
-      <div class="badge" style="gap: 10px">
-        <span>API key</span>
-        <input
-          class="control"
-          :type="showApiKey ? 'text' : 'password'"
-          v-model.trim="geminiApiKey"
-          placeholder="Paste your key"
-          style="width: 220px; padding: 8px 10px"
-        />
-        <button type="button" class="btnGhost" @click="showApiKey = !showApiKey">
-          {{ showApiKey ? "Hide" : "Show" }}
-        </button>
-      </div>
+      <ApiKeyInput v-model="geminiApiKey" />
     </div>
 
     <div>
-      <div v-if="generateView === 'library'" class="storyboardLibrary">
-	        <div class="card storyboardLibraryHeader">
-	          <div>
-	            <div class="sectionTitle" style="margin: 0 0 6px">Storyboards</div>
-	            <div class="title" style="font-size: 18px; margin: 0">Pick an idea to continue</div>
-	            <div class="muted" style="margin-top: 6px">Storyboards are stored locally in this browser.</div>
-	          </div>
-	          <button type="button" class="btnSecondary" @click="createNewStoryboard" :disabled="isGenerating">
-	            New storyboard
-	          </button>
-	        </div>
+      <StoryboardLibrary
+        v-if="generateView === 'library'"
+        :storyboards="storyboards"
+        :active-id="activeStoryboardId"
+        :runtime-by-id="storyboardRuntime"
+        :is-generating="isGenerating"
+        :subtitle-for="storyboardSubtitle"
+        :format-timestamp="formatStoryboardTimestamp"
+        @create="createNewStoryboard"
+        @open="openStoryboard"
+      />
 
-	        <div class="storyboardGallery" role="list" aria-label="Storyboards">
-	          <button
-	            v-for="sb in storyboards"
-	            :key="sb.id"
-	            type="button"
-	            :class="`storyboardCard ${sb.id === activeStoryboardId ? 'storyboardCardActive' : ''}`"
-	            @click="openStoryboard(sb.id)"
-	            role="listitem"
-	            :disabled="isGenerating"
-	          >
-	            <div class="storyboardCardPreview" aria-hidden="true">
-	              <template v-if="storyboardRuntime[sb.id]?.resultDataUrl">
-	                <img :src="storyboardRuntime[sb.id].resultDataUrl ?? undefined" alt="" draggable="false" />
-	              </template>
-	              <template v-else-if="storyboardRuntime[sb.id]?.garmentDataUrls?.length">
-	                <img
-	                  :src="storyboardRuntime[sb.id].garmentDataUrls[0] ?? undefined"
-	                  alt=""
-	                  draggable="false"
-	                />
-	              </template>
-	              <div v-else class="storyboardCardPreviewPlaceholder">No preview yet</div>
-	            </div>
-
-	            <div class="storyboardCardTop">
-	              <div class="storyboardCardTitle">{{ sb.title }}</div>
-	              <div class="storyboardCardMeta">{{ formatStoryboardTimestamp(sb.updatedAt) }}</div>
-	            </div>
-	            <div class="storyboardCardSub">{{ storyboardSubtitle(sb) }}</div>
-	          </button>
-	        </div>
-      </div>
-
-      <div v-if="generateView !== 'library'" class="card storyboardEditorCard">
-	        <div class="storyboardEditorCardHeader" aria-label="Storyboard manager">
-	          <div class="storyboardEditorHeaderTop">
-	            <button
-	              type="button"
-	              class="btnGhost storyboardBackButton"
-	              @click="enterStoryboardLibrary"
-	              :disabled="isGenerating"
-	            >
-	              ← Storyboards
-	            </button>
-	            <div class="badge" title="Saved locally in this browser">
-	              <span>Saved locally</span>
-	              <code>{{ formatStoryboardTimestamp(activeStoryboard.updatedAt) }}</code>
-	            </div>
-	          </div>
-
-	          <div class="storyboardEditorHeaderMain">
-	            <div class="storyboardEditorHeaderName">
-	              <div class="sectionTitle" style="margin: 0 0 6px">Storyboard name</div>
-	              <input class="control" v-model.trim="activeStoryboard.title" :disabled="isGenerating" />
-	            </div>
-
-	            <div class="storyboardEditorHeaderActions">
-	              <button type="button" class="btnSecondary" @click="duplicateActiveStoryboard" :disabled="isGenerating">
-	                Duplicate
-	              </button>
-	              <button
-	                type="button"
-	                class="btnDanger"
-	                @click="requestDeleteActiveStoryboard"
-	                :disabled="isGenerating || storyboards.length <= 1"
-	              >
-	                Delete
-	              </button>
-	            </div>
-	          </div>
-
-	          <div v-if="storyboards.length <= 1" class="muted" style="margin-top: -2px">
-	            Keep at least one storyboard.
-	          </div>
-	        </div>
-
-		        <div class="divider storyboardEditorDivider" aria-hidden="true"></div>
-
-	        <div class="storyboardEditorCardBody">
-	          <div class="grid storyBoard">
-	            <form class="storyboardForm" @submit.prevent="onGenerateLook">
-	              <fieldset class="formFieldset" :disabled="isGenerating">
-	                <div class="storyboardCards">
-	                  <div class="card">
-	                    <div class="sectionTitle" style="margin-top: 0">Garment photos</div>
-	                    <div>
-	                      <FieldLabel
-		              htmlFor="garmentPhoto"
-		              label="Photos"
-		              info="Upload 1–4 photos of the SAME garment (front/side/back). The generator will preserve the garment silhouette and create a photorealistic ecommerce scene around it."
-		            />
-	            <input
-	              id="garmentPhoto"
-	              ref="garmentFileInputRef"
-	              type="file"
-	              accept="image/*"
-	              multiple
-	              @change="onGarmentFileChange"
-	            />
-	          </div>
-	
-	          <div v-if="activeRuntime.garmentDataUrls.length" style="margin-top: 12px">
-	            <label>Garment preview</label>
-	            <div class="preview previewGarments">
-	              <div
-	                v-for="(src, idx) in activeRuntime.garmentDataUrls"
-	                :key="`${activeStoryboardId}-${idx}`"
-	                class="previewItem"
-	              >
-	                <img :src="src" :alt="`Garment angle ${idx + 1}`" draggable="false" />
-	                <button
-	                  type="button"
-	                  class="removePreviewButton"
-	                  @click="removeGarmentImage(idx)"
-	                  :aria-label="`Remove garment image ${idx + 1}`"
-	                  title="Remove image"
-	                >
-	                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-	                    <path d="M18 6 6 18" />
-	                    <path d="M6 6l12 12" />
-	                  </svg>
-	                </button>
-	              </div>
-	            </div>
-	            <div v-if="activeRuntime.garmentDataUrls.length < 3" class="muted" style="margin-top: 8px">
-	              Tip: upload 3–4 angles (front/side/back) for better accuracy.
-	            </div>
-	          </div>
-
-	                  </div>
-
-	                  <div class="card">
-	                    <div class="sectionTitle" style="margin-top: 0">Creative Direction</div>
-
-          <div>
-            <FieldLabel
-              label="Occasion"
-              info="Sets the vibe for styling and scene (lighting, accessories, background mood). Pick a preset and optionally add extra detail (e.g., “sunset beach”, “nightclub”, “wedding guest”)."
-            />
-            <PillRadioGroup
-              name="occasion"
-              :model-value="activeConfig.occasionPreset"
-              @update:model-value="activeConfig.occasionPreset = $event"
-              :options="occasionPresetOptions"
-            />
-            <div style="height: 14px" />
-            <input
-              class="control"
-              type="text"
-              v-model="activeConfig.occasionDetails"
-              placeholder="Optional: add details or type a custom occasion"
-            />
-          </div>
-
-          <div style="height: 40px" />
-
-          <div class="row">
-            <div>
-              <FieldLabel
-                label="Color scheme"
-                info="The overall color palette you want the model + background to lean into. This helps the generator choose complementary lighting and scene colors (e.g., “pastel”, “neutral”, “red & white”, “monochrome”)."
-              />
-              <input
-                class="control"
-                type="text"
-                v-model="activeConfig.colorScheme"
-                placeholder="e.g. red & white, pastel, neutral, monochrome"
-              />
-            </div>
-            <div>
-              <FieldLabel
-                label="Accessories"
-                info="Optional add-ons to make the scene feel complete (e.g., sunglasses, tote bag, heels). Keep it realistic and not too many items."
-              />
-              <input
-                class="control"
-                type="text"
-                v-model="activeConfig.accessories"
-                placeholder="comma separated, e.g. straw hat, sandals"
-              />
-            </div>
-          </div>
-
-	          <div style="height: 40px" />
-
-	          <div>
-	            <FieldLabel
-	              label="Footwear"
-	              info="Choose footwear and optionally add details. If you set both, they will be combined."
-	            />
-	            <PillRadioGroup
-	              name="footwear"
-	              :model-value="activeConfig.footwearPreset"
-	              @update:model-value="activeConfig.footwearPreset = $event"
-	              :options="[
-	                { value: '', label: 'Auto' },
-	                { value: 'white_sneakers', label: 'White sneakers' },
-	                { value: 'chunky_sneakers', label: 'Chunky sneakers' },
-	                { value: 'strappy_heels', label: 'Strappy heels' },
-	                { value: 'block_heels', label: 'Block heels' },
-	                { value: 'minimal_sandals', label: 'Minimal sandals' },
-	                { value: 'platform_sandals', label: 'Platform sandals' },
-	                { value: 'ankle_boots', label: 'Ankle boots' },
-	                { value: 'knee_boots', label: 'Knee-high boots' },
-	                { value: 'ballet_flats', label: 'Ballet flats' },
-	                { value: 'loafers', label: 'Loafers' },
-	                { value: 'mules', label: 'Mules' },
-	                { value: 'slides', label: 'Slides' },
-	                { value: 'custom', label: 'Custom' },
-	              ]"
-	            />
-	            <div style="height: 14px" />
-	            <input
-	              class="control"
-	              type="text"
-	              v-model="activeConfig.footwearDetails"
-	              placeholder="Optional: add details (e.g., white sneakers, nude heels, leather boots)"
-	            />
-	          </div>
-
-	          <div style="height: 40px" />
-
-		          <div>
-		            <FieldLabel
-		              label="Overall Style"
-		              info="Pick a modern ecommerce styling direction (e.g., quiet luxury, streetwear, athleisure). You can also add extra keywords below."
-	            />
-	            <PillRadioGroup
-	              name="styleKeywords"
-	              :model-value="activeConfig.stylePreset"
-	              @update:model-value="activeConfig.stylePreset = $event"
-		              :options="stylePresetOptions"
-	            />
-	            <div style="height: 14px" />
-	            <input
-	              class="control"
-	              type="text"
-	              v-model="activeConfig.styleKeywordsDetails"
-	              placeholder="Optional: add style keywords (comma separated)"
-	            />
-	          </div>
-
-	                  </div>
-
-	                  <div class="card">
-	                    <div class="sectionTitle" style="margin-top: 0">Background</div>
-
-          <div>
-            <FieldLabel
-              label="Background theme"
-              info="Describes the environment you want (e.g., studio, beach, rooftop, garden). Pick a preset and optionally add extra detail. If you select an uploaded background thumbnail below, that image will be used as the scene reference."
-            />
-	            <PillRadioGroup
-	              name="backgroundTheme"
-	              :model-value="activeConfig.backgroundThemePreset"
-	              @update:model-value="activeConfig.backgroundThemePreset = $event"
-	              :options="[
-	                { value: '', label: 'Auto' },
-                {
-                  value:
-                    'studio — bright modern ecommerce studio set; seamless backdrop or clean wall; soft diffused daylight; neutral tones; minimal props',
-                  label: 'Studio',
-                },
-                {
-                  value:
-                    'beach — sunny coastal beach; clean sand; gentle waves; bright natural daylight; airy vacation vibe; uncluttered background',
-                  label: 'Beach',
-                },
-	                {
-	                  value:
-	                    'sunset shoreline — golden hour beach at sunset; warm sky gradient; soft reflections; romantic coastal mood; clean framing',
-	                  label: 'Sunset Shoreline',
-	                },
-	                {
-	                  value:
-	                    'arcade — modern neon-lit arcade; colorful ambient lights; glossy floor; playful nightlife energy; clean composition with soft bokeh',
-	                  label: 'Arcade',
-	                },
-                {
-                  value:
-                    'upscale city street — modern storefronts; clean sidewalks; contemporary lifestyle vibe; soft daylight; minimal clutter; premium feel',
-                  label: 'City',
-                },
-                {
-                  value:
-                    'rooftop terrace — modern rooftop with skyline; clean railings; golden-hour or soft daylight; premium lifestyle vibe; minimal clutter',
-                  label: 'Rooftop',
-                },
-                {
-                  value:
-                    'coffee shop — modern cafe interior; warm daylight; clean tables; subtle background blur; trendy lifestyle vibe; uncluttered',
-                  label: 'Coffee shop',
-                },
-                {
-                  value:
-                    'garden — lush landscaped garden; greenery; clean stone paths; soft natural light; elegant outdoor lifestyle; subtle bokeh',
-                  label: 'Garden',
-                },
-                {
-                  value:
-                    'art gallery — minimal contemporary gallery; white walls; clean lines; soft even lighting; premium editorial vibe; uncluttered background',
-                  label: 'Gallery',
-                },
-                {
-                  value:
-                    'minimal neutral interior — light textured wall; clean lines; neutral palette; uncluttered set; soft natural daylight; calm premium vibe',
-                  label: 'Minimal',
-                },
-	                {
-	                  value:
-	                    'luxury hotel / penthouse — premium interior; marble/wood textures; tasteful decor; warm daylight; high-end lifestyle vibe; minimal clutter',
-	                  label: 'Luxury',
-	                },
-	                {
-	                  value:
-	                    'mediterranean terrace — white stucco; stone tiles; olive trees; coastal Europe resort vibe; bright sun; airy open space; clean composition',
-	                  label: 'Mediterranean Terrace',
-	                },
-	                {
-	                  value:
-	                    'concert venue — modern music venue; stage lights as soft bokeh; energetic atmosphere; keep product framing clean and readable, model should be standing in the crowd.',
-	                  label: 'Concert',
-	                },
-	                {
-	                  value:
-	                    'nightclub lounge — upscale lounge; subtle neon accents; stylish nightlife vibe; moody but clean lighting; uncluttered background',
-	                  label: 'Nightlife',
-	                },
-	                { value: 'custom', label: 'Custom' },
-	              ]"
-	            />
-            <div style="height: 14px" />
-            <input
-              class="control"
-              type="text"
-              v-model="activeConfig.backgroundThemeDetails"
-              placeholder="Optional: add details (lighting, location, props)"
-            />
-          </div>
-
-          <div style="height: 40px" />
-
-	                  </div>
-
-	                  <div class="card">
-	                    <div class="sectionTitle" style="margin-top: 0">Model</div>
-
-          <div>
-            <FieldLabel
-              label="Model"
-              info="Use this to bias the generated model (ethnicity / vibe) when you are not selecting a specific model image. Pick a preset and/or add your own description."
-            />
-            <PillRadioGroup
-              name="modelPreference"
-              :model-value="activeConfig.modelPreset"
-              @update:model-value="activeConfig.modelPreset = $event"
-              :options="[
-                { value: '', label: 'Auto' },
-                { value: 'South Asian (Indian)', label: 'Indian' },
-                { value: 'East Asian', label: 'East Asian' },
-                { value: 'Black', label: 'Black' },
-                { value: 'White / European', label: 'White / European' },
-                { value: 'Middle Eastern', label: 'Middle Eastern' },
-                { value: 'Latina', label: 'Latina' },
-                { value: 'Mixed / Diverse', label: 'Mixed / Diverse' },
-                { value: 'custom', label: 'Custom' },
-              ]"
-            />
-            <div style="height: 14px" />
-            <input
-              class="control"
-              type="text"
-              v-model="activeConfig.modelDetails"
-              placeholder="Optional: add model description (ethnicity, vibe, etc.)"
-            />
-          </div>
-
-          <div style="height: 40px" />
-
-          <div style="height: 40px" />
-
-	          <div>
-	            <div>
-	              <FieldLabel
-	                label="Model styling notes"
-	                info="Pick a preset for hair/makeup/jewelry, and optionally add your own notes. If you set both, they will be combined."
-	              />
-	              <PillRadioGroup
-	                name="modelStyling"
-	                :model-value="activeConfig.modelStylingPreset"
-	                @update:model-value="activeConfig.modelStylingPreset = $event"
-	                :options="modelStylingPresetOptions"
-	              />
-	              <div style="height: 14px" />
-	              <input
-	                class="control"
-	                type="text"
-	                v-model="activeConfig.modelStylingNotes"
-	                placeholder="Optional: add your own notes (hair/makeup/jewelry, vibe)"
-	              />
-	            </div>
-	          </div>
-
-	                  </div>
-
-	                  <div class="card">
-	                    <div class="sectionTitle" style="margin-top: 0">Generate</div>
-
-	          <div class="actions">
-	            <button type="submit" class="btnPrimary" :disabled="isGenerating">
-	              {{ isGenerating ? "Generating..." : "Generate look" }}
-	            </button>
-	            <button
-	              type="button"
-	              class="btnGhost"
-	              :aria-pressed="activeConfig.includeDebugStr === 'yes'"
-	              :disabled="isGenerating"
-	              @click="activeConfig.includeDebugStr = activeConfig.includeDebugStr === 'yes' ? 'no' : 'yes'"
-	              title="Show/hide the internal prompts used for generation."
-	            >
-	              {{ activeConfig.includeDebugStr === "yes" ? "Debug off" : "Debug" }}
-	            </button>
-	          </div>
-
-          <div v-if="activeRuntime.generateError" class="error">{{ activeRuntime.generateError }}</div>
-
-          <div v-if="activeRuntime.chosenSummary" style="margin-top: 12px">
-            <label>Chosen plan</label>
-            <pre class="muted" style="white-space: pre-wrap">{{ JSON.stringify(activeRuntime.chosenSummary, null, 2) }}</pre>
-          </div>
-
-		          <div v-if="activeRuntime.debugSummary && activeConfig.includeDebugStr === 'yes'" style="margin-top: 12px">
-		            <label>Prompts</label>
-		            <div v-if="activeRuntime.debugSummary.final_prompt" style="margin-top: 10px">
-		              <div class="muted" style="margin-bottom: 6px">Text prompt (LLM output)</div>
-		              <pre class="muted" style="white-space: pre-wrap">{{ activeRuntime.debugSummary.final_prompt }}</pre>
-		            </div>
-		            <div v-if="activeRuntime.debugSummary.composite_prompt" style="margin-top: 10px">
-		              <div class="muted" style="margin-bottom: 6px">Image prompt (composite)</div>
-		              <pre class="muted" style="white-space: pre-wrap">{{ activeRuntime.debugSummary.composite_prompt }}</pre>
-		            </div>
-		            <div v-if="activeRuntime.debugSummary.negative_prompt" style="margin-top: 10px">
-		              <div class="muted" style="margin-bottom: 6px">Avoid</div>
-		              <pre class="muted" style="white-space: pre-wrap">{{ activeRuntime.debugSummary.negative_prompt }}</pre>
-		            </div>
-	                  </div>
-	                  </div>
-	                </div>
-	              </fieldset>
-	            </form>
-
-      <div class="card result">
-        <FieldLabel
-          label="Generated result"
-          info="Your generated ecommerce scene will appear here. For best results, start with Auto settings and only lock in a background/model when you need consistency."
+      <div v-else class="card storyboardEditorCard">
+        <StoryboardEditorHeader
+          :title="activeStoryboard.title"
+          :updated-at="activeStoryboard.updatedAt"
+          :disabled="isGenerating"
+          :can-delete="storyboards.length > 1"
+          :format-timestamp="formatStoryboardTimestamp"
+          @back="enterStoryboardLibrary"
+          @duplicate="duplicateActiveStoryboard"
+          @request-delete="requestDeleteActiveStoryboard"
+          @update:title="(v) => (activeStoryboard.title = v)"
         />
 
-        <div v-if="isGenerating" class="resultPlaceholder loaderPlaceholder">
-          <div class="loader">
-            <div class="loaderHeader">
-              <Spinner />
-              <div>
-                <div class="loaderTitle">{{ GENERATION_STEPS[generationStepIndex] }}</div>
-                <div class="loaderSubtitle">Elapsed {{ formatDurationMs(generationElapsedMs) }}</div>
-              </div>
-            </div>
+        <div class="divider storyboardEditorDivider" aria-hidden="true"></div>
 
-            <div class="loaderSteps" aria-label="Generation progress">
-              <div
-                v-for="(label, idx) in GENERATION_STEPS"
-                :key="label"
-                :class="idx < generationStepIndex ? 'loaderStep loaderStepDone' : idx === generationStepIndex ? 'loaderStep loaderStepActive' : 'loaderStep'"
-              >
-                <div class="loaderDot" aria-hidden="true" />
-                <div class="loaderStepText">{{ label }}</div>
-              </div>
-            </div>
+        <div class="storyboardEditorCardBody">
+          <div class="grid storyBoard">
+            <StoryboardFormCards
+              :config="activeConfig"
+              :runtime="activeRuntime"
+              :active-storyboard-id="activeStoryboardId"
+              :is-generating="isGenerating"
+              :on-garment-file-change="onGarmentFileChange"
+              :remove-garment-image="removeGarmentImage"
+              @submit="onGenerateLook"
+            />
 
-            <div class="loaderHint muted">Keep this tab open while we generate your image.</div>
+            <StoryboardResultsPane
+              :is-generating="isGenerating"
+              :generation-step-index="generationStepIndex"
+              :generation-elapsed-ms="generationElapsedMs"
+              :generation-steps="GENERATION_STEPS"
+              :runtime="activeRuntime"
+              :computed-timings="computedTimings"
+              :format-duration-ms="formatDurationMs"
+              :mime-to-extension="mimeToExtension"
+              :on-result-image-pointer-move="onResultImagePointerMove"
+              :on-result-image-pointer-leave="onResultImagePointerLeave"
+              @open-image="openImageModal"
+              @generate-angles="generateMultipleAngles"
+              @download-all="downloadAllImages"
+            />
           </div>
         </div>
-
-        <template v-else-if="activeRuntime.resultDataUrl">
-          <div class="resultActions">
-            <div class="resultActionsRight">
-              <div v-if="activeRuntime.resultTimingsMs" class="badge" title="Time spent generating this image">
-                <span>Thinking</span>
-                <code>{{ formatDurationMs(computedTimings.textLlmMs) }}</code>
-                <span>Image gen</span>
-                <code>{{ formatDurationMs(computedTimings.imageGenMs) }}</code>
-                <span>Total</span>
-                <code>{{ formatDurationMs(computedTimings.totalMs) }}</code>
-              </div>
-            </div>
-          </div>
-          <div
-            class="resultImageZoom"
-            @pointermove="onResultImagePointerMove"
-            @pointerleave="onResultImagePointerLeave"
-          >
-            <img class="resultImage" :src="activeRuntime.resultDataUrl" alt="Generated look" draggable="false" />
-          </div>
-          <div class="resultImageButtons">
-            <a
-              class="btn btnGhost iconButton"
-              style="width: 130px;"
-              :href="activeRuntime.resultDataUrl"
-              :download="`look-${Date.now()}.${mimeToExtension(activeRuntime.resultMimeType)}`"
-              aria-label="Download generated image"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <path d="M12 3v10" />
-                <path d="M8 11l4 4 4-4" />
-                <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-              </svg>&nbsp;&nbsp;Download
-            </a>
-            <button
-              type="button"
-              class="btnGhost iconButton"
-              @click="openImageModal(activeRuntime.resultDataUrl, 'Generated look', 'Generated look')"
-              aria-label="Open generated image"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <path d="M10 10 5 5" />
-                <path d="M5 8V5H8" />
-                <path d="M14 10 19 5" />
-                <path d="M16 5h3v3" />
-                <path d="M10 14 5 19" />
-                <path d="M5 16v3h3" />
-                <path d="M14 14 19 19" />
-                <path d="M16 19h3v-3" />
-              </svg>
-            </button>
-          </div>
-        </template>
-
-	        <div v-else class="resultPlaceholder resultEmpty">
-	          <div>
-	            <div class="resultEmptyTitle">Ready when you are</div>
-	            <div class="muted">Upload garment photos, then click “Generate look”.</div>
-	          </div>
-	        </div>
-
-	        <div class="divider" style="margin: 18px 0" />
-
-	        <FieldLabel
-	          label="Multiple Angles"
-	          info="Generate natural ecommerce poses for side and back views, matching the same garment + model + scene as the main result."
-	        />
-
-	        <div v-if="!activeRuntime.resultDataUrl" class="muted">
-	          Generate the main image first to unlock multiple angles.
-	        </div>
-
-	        <div v-else>
-	          <div class="actions" style="justify-content: space-between">
-	            <button
-	              type="button"
-	              class="btnSecondary"
-	              @click="generateMultipleAngles"
-	              :disabled="isGenerating || activeRuntime.angles.generating"
-	            >
-	              {{ activeRuntime.angles.generating ? "Generating..." : "Generate Multiple Angles" }}
-	            </button>
-	            <button
-	              v-if="activeRuntime.angles.sideDataUrl && activeRuntime.angles.backDataUrl"
-	              type="button"
-	              class="btnPrimary"
-	              @click="downloadAllImages"
-	            >
-	              Download all images
-	            </button>
-	          </div>
-
-	          <div v-if="activeRuntime.angles.timingsMs" class="muted" style="margin-top: 10px">
-	            Side: {{ formatDurationMs(activeRuntime.angles.timingsMs.side) }} · Back:
-	            {{ formatDurationMs(activeRuntime.angles.timingsMs.back) }} · Total:
-	            {{ formatDurationMs(activeRuntime.angles.timingsMs.total) }}
-	          </div>
-
-	          <div v-if="activeRuntime.angles.error" class="error">{{ activeRuntime.angles.error }}</div>
-
-	          <div v-if="activeRuntime.angles.sideDataUrl || activeRuntime.angles.backDataUrl" class="anglesGrid">
-	            <div class="angleTile">
-	              <div class="angleTileHeader">
-	                <div class="angleTileTitle">Side view</div>
-	                <div v-if="activeRuntime.angles.sideDataUrl" class="angleTileActions">
-	                  <button
-	                    type="button"
-	                    class="btnGhost iconButton"
-	                    @click="openImageModal(activeRuntime.angles.sideDataUrl, 'Side view', 'Generated side view')"
-	                    aria-label="Open side view"
-	                  >
-	                    <svg
-	                      viewBox="0 0 24 24"
-	                      fill="none"
-	                      stroke="currentColor"
-	                      stroke-width="2"
-	                      stroke-linecap="round"
-	                      stroke-linejoin="round"
-	                      aria-hidden="true"
-	                      focusable="false"
-	                    >
-	                      <path d="M10 10 5 5" />
-	                      <path d="M5 8V5H8" />
-	                      <path d="M14 10 19 5" />
-	                      <path d="M16 5h3v3" />
-	                      <path d="M10 14 5 19" />
-	                      <path d="M5 16v3h3" />
-	                      <path d="M14 14 19 19" />
-	                      <path d="M16 19h3v-3" />
-	                    </svg>
-	                  </button>
-	                  <a
-	                    class="btn btnGhost iconButton"
-	                    :href="activeRuntime.angles.sideDataUrl"
-	                    :download="`look-side-${Date.now()}.${mimeToExtension(activeRuntime.angles.sideMimeType)}`"
-	                    aria-label="Download side view"
-	                  >
-	                    <svg
-	                      viewBox="0 0 24 24"
-	                      fill="none"
-	                      stroke="currentColor"
-	                      stroke-width="2"
-	                      stroke-linecap="round"
-	                      stroke-linejoin="round"
-	                      aria-hidden="true"
-	                      focusable="false"
-	                    >
-	                      <path d="M12 3v10" />
-	                      <path d="M8 11l4 4 4-4" />
-	                      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-	                    </svg>
-	                  </a>
-	                </div>
-	              </div>
-	              <div v-if="activeRuntime.angles.sideDataUrl" style="margin-top: 10px">
-	                <img :src="activeRuntime.angles.sideDataUrl" alt="Generated side view" draggable="false" />
-	              </div>
-	              <div v-else class="muted" style="margin-top: 10px">Not generated yet.</div>
-	            </div>
-
-	            <div class="angleTile">
-	              <div class="angleTileHeader">
-	                <div class="angleTileTitle">Back view</div>
-	                <div v-if="activeRuntime.angles.backDataUrl" class="angleTileActions">
-	                  <button
-	                    type="button"
-	                    class="btnGhost iconButton"
-	                    @click="openImageModal(activeRuntime.angles.backDataUrl, 'Back view', 'Generated back view')"
-	                    aria-label="Open back view"
-	                  >
-	                    <svg
-	                      viewBox="0 0 24 24"
-	                      fill="none"
-	                      stroke="currentColor"
-	                      stroke-width="2"
-	                      stroke-linecap="round"
-	                      stroke-linejoin="round"
-	                      aria-hidden="true"
-	                      focusable="false"
-	                    >
-	                      <path d="M10 10 5 5" />
-	                      <path d="M5 8V5H8" />
-	                      <path d="M14 10 19 5" />
-	                      <path d="M16 5h3v3" />
-	                      <path d="M10 14 5 19" />
-	                      <path d="M5 16v3h3" />
-	                      <path d="M14 14 19 19" />
-	                      <path d="M16 19h3v-3" />
-	                    </svg>
-	                  </button>
-	                  <a
-	                    class="btn btnGhost iconButton"
-	                    :href="activeRuntime.angles.backDataUrl"
-	                    :download="`look-back-${Date.now()}.${mimeToExtension(activeRuntime.angles.backMimeType)}`"
-	                    aria-label="Download back view"
-	                  >
-	                    <svg
-	                      viewBox="0 0 24 24"
-	                      fill="none"
-	                      stroke="currentColor"
-	                      stroke-width="2"
-	                      stroke-linecap="round"
-	                      stroke-linejoin="round"
-	                      aria-hidden="true"
-	                      focusable="false"
-	                    >
-	                      <path d="M12 3v10" />
-	                      <path d="M8 11l4 4 4-4" />
-	                      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-	                    </svg>
-	                  </a>
-	                </div>
-	              </div>
-	              <div v-if="activeRuntime.angles.backDataUrl" style="margin-top: 10px">
-	                <img :src="activeRuntime.angles.backDataUrl" alt="Generated back view" draggable="false" />
-	              </div>
-	              <div v-else class="muted" style="margin-top: 10px">Not generated yet.</div>
-	            </div>
-	          </div>
-	        </div>
       </div>
-	          </div>
-	        </div>
-	    </div>
     </div>
 
-	    <div
-	      v-if="imageModal"
-	      class="modalOverlay"
-	      role="dialog"
-	      aria-modal="true"
-	      :aria-label="imageModal.title"
-	      @click.self="closeImageModal"
-	    >
-	      <div class="modalCard imageModalCard">
-	        <div class="imageModalHeader">
-	          <div class="modalTitle">{{ imageModal.title }}</div>
-	          <button type="button" class="btnGhost iconButton" @click="closeImageModal" aria-label="Close image">
-	            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-	              <path d="M18 6 6 18" />
-	              <path d="M6 6l12 12" />
-	            </svg>
-	          </button>
-	        </div>
-	        <div class="imageModalBody">
-	          <img :src="imageModal.src" :alt="imageModal.alt" draggable="false" />
-	        </div>
-	      </div>
-	    </div>
-
-	    <div
-	      v-if="deleteStoryboardModalOpen"
-	      class="modalOverlay"
-	      role="dialog"
-	      aria-modal="true"
-	      aria-label="Delete storyboard"
-	      @click.self="closeDeleteStoryboardModal"
-	    >
-	      <div class="modalCard">
-	        <div class="modalTitle">Delete storyboard?</div>
-	        <div class="muted" style="margin-top: 6px">
-	          This removes <strong>{{ activeStoryboard.title }}</strong> from this browser.
-	        </div>
-	        <div class="actions" style="justify-content: flex-end; margin-top: 16px">
-	          <button type="button" class="btnSecondary" @click="closeDeleteStoryboardModal">Cancel</button>
-	          <button type="button" class="btnDanger" @click="confirmDeleteActiveStoryboard">Delete</button>
-	        </div>
-	      </div>
-	    </div>
-	  </div>
-	</template>
+    <ImageModal
+      :open="Boolean(imageModal)"
+      :src="imageModal?.src || ''"
+      :title="imageModal?.title || ''"
+      :alt="imageModal?.alt"
+      @close="closeImageModal"
+    />
+    <DeleteStoryboardModal
+      :open="deleteStoryboardModalOpen"
+      :title="activeStoryboard.title"
+      @close="closeDeleteStoryboardModal"
+      @confirm="confirmDeleteActiveStoryboard"
+    />
+  </div>
+</template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
-import FieldLabel from "./components/FieldLabel.vue";
-import PillRadioGroup from "./components/PillRadioGroup.vue";
-import Spinner from "./components/Spinner.vue";
+import ApiKeyInput from "./components/ApiKeyInput.vue";
+import DeleteStoryboardModal from "./components/DeleteStoryboardModal.vue";
+import ImageModal from "./components/ImageModal.vue";
+import StoryboardLibrary from "./components/StoryboardLibrary.vue";
+import StoryboardEditorHeader from "./components/StoryboardEditorHeader.vue";
+import StoryboardFormCards from "./components/StoryboardFormCards.vue";
+import StoryboardResultsPane from "./components/StoryboardResultsPane.vue";
 
 import { base64ToBytes, dataUrlToInlineImage, generateImage } from "./lib/gemini";
-import { fileToDataUrl, nowIso, parseTags as parseLocalTags, randomId } from "./lib/utils";
+import {
+  footwearPresetKeywordsByValue,
+  footwearPresetLabelByValue,
+  modelStylingPresetLabelByValue,
+  occasionPresetLabelByValue,
+  stylePresetLabelByValue,
+} from "./lib/presets";
+import { fileToDataUrl, nowIso, parseTags as parseLocalTags } from "./lib/utils";
 import {
   createStoryboardRecord,
   loadActiveStoryboardIdFromLocalStorage,
@@ -824,14 +114,14 @@ import {
   saveStoryboardsToLocalStorage,
   type StoryboardRecord,
 } from "./lib/storyboards";
-	import {
-	  applyFreeformOverrides,
-	  buildCompositePrompt,
-	  buildGarmentReferencePrompt,
-	  buildMultiAnglePrompt,
-	  computeTimingsMs,
-	  generateFinalPrompt,
-	  planLookFromGarment,
+import {
+  applyFreeformOverrides,
+  buildCompositePrompt,
+  buildGarmentReferencePrompt,
+  buildMultiAnglePrompt,
+  computeTimingsMs,
+  generateFinalPrompt,
+  planLookFromGarment,
   type LookPlan,
 } from "./lib/pipeline";
 
@@ -870,7 +160,6 @@ function combinePresetAndCustom(opts: { presetText: string; customText: string; 
 const generateView = ref<"library" | "editor">("library");
 
 const geminiApiKey = ref(localStorage.getItem("gemini_api_key") || "");
-const showApiKey = ref(false);
 watch(
   geminiApiKey,
   (value) => {
@@ -965,7 +254,6 @@ const activeStoryboard = computed(() => {
 
 const activeConfig = computed(() => activeStoryboard.value.config);
 const activeRuntime = computed(() => storyboardRuntime.value[activeStoryboardId.value]!);
-const includeDebug = computed(() => activeConfig.value.includeDebugStr === "yes");
 
 const deleteStoryboardModalOpen = ref(false);
 type ImageModalState = { src: string; title: string; alt: string };
@@ -1053,7 +341,7 @@ function formatStoryboardTimestamp(iso: string): string {
 
 			  const footwearPresetLabel =
 			    cfg.footwearPreset && cfg.footwearPreset !== "custom"
-			      ? footwearPresetLabels[cfg.footwearPreset] ?? cfg.footwearPreset
+			      ? footwearPresetLabelByValue[cfg.footwearPreset] ?? cfg.footwearPreset
 			      : "";
 			  const footwear =
 			    cfg.footwearPreset === "custom"
@@ -1086,12 +374,6 @@ function formatStoryboardTimestamp(iso: string): string {
 	  if (styling) parts.push(`Styling: ${styling}`);
 
 	  return parts.join("\n") || "No settings yet";
-	}
-
-	function selectStoryboard(id: string) {
-	  if (isGenerating.value) return;
-	  if (!storyboards.value.some((sb) => sb.id === id)) return;
-	  activeStoryboardId.value = id;
 	}
 
 	function openStoryboard(id: string) {
@@ -1214,37 +496,35 @@ try {
   // Ignore localStorage quota errors; storyboards will remain in memory.
 }
 
-const garmentFileInputRef = ref<HTMLInputElement | null>(null);
+async function onGarmentFileChange(e: Event) {
+  const input = e.target as HTMLInputElement | null;
+  const files = Array.from(input?.files ?? []);
+  const storyboardId = activeStoryboardId.value;
+  const runtime = storyboardRuntime.value[storyboardId];
+  if (!runtime) return;
 
-	async function onGarmentFileChange(e: Event) {
-	  const input = e.target as HTMLInputElement | null;
-	  const files = Array.from(input?.files ?? []);
-	  const storyboardId = activeStoryboardId.value;
-	  const runtime = storyboardRuntime.value[storyboardId];
-	  if (!runtime) return;
+  runtime.generateError = null;
 
-	  runtime.generateError = null;
+  if (!files.length) {
+    if (input) input.value = "";
+    return;
+  }
 
-	  if (!files.length) {
-	    if (input) input.value = "";
-	    return;
-	  }
+  const MAX = 4;
+  const remaining = Math.max(0, MAX - runtime.garmentDataUrls.length);
+  if (!remaining) {
+    runtime.generateError = "You can upload up to 4 garment photos. Remove one to add more.";
+    if (input) input.value = "";
+    return;
+  }
 
-	  const MAX = 4;
-	  const remaining = Math.max(0, MAX - runtime.garmentDataUrls.length);
-	  if (!remaining) {
-	    runtime.generateError = "You can upload up to 4 garment photos. Remove one to add more.";
-	    if (input) input.value = "";
-	    return;
-	  }
+  const limited = files.slice(0, remaining);
+  const dataUrls = await Promise.all(limited.map((f) => fileToDataUrl(f)));
+  runtime.garmentFileNames.push(...limited.map((f) => f.name || "garment"));
+  runtime.garmentDataUrls.push(...dataUrls);
 
-	  const limited = files.slice(0, remaining);
-	  const dataUrls = await Promise.all(limited.map((f) => fileToDataUrl(f)));
-	  runtime.garmentFileNames.push(...limited.map((f) => f.name || "garment"));
-	  runtime.garmentDataUrls.push(...dataUrls);
-
-	  if (input) input.value = "";
-	}
+  if (input) input.value = "";
+}
 
 const isGenerating = ref(false);
 
@@ -1434,57 +714,6 @@ onMounted(() => {
 });
 
 // Derived inputs
-const occasionPresetOptions: Array<{ value: string; label: string }> = [
-  { value: "", label: "Auto" },
-  {
-    value:
-      "everyday casual daytime street style; modern ecommerce look; clean natural daylight; approachable, effortless vibe",
-    label: "Everyday",
-  },
-  {
-    value:
-      "weekend brunch daytime; trendy polished casual; bright natural light; relaxed upscale vibe; clean composition",
-    label: "Brunch",
-  },
-  {
-    value:
-      "date night evening; chic elevated styling; flattering silhouette; warm cinematic lighting; premium nightlife mood",
-    label: "Date night",
-  },
-  {
-    value:
-      "night out nightlife; bold trendy going-out look; city lights or neon bokeh; confident, fashion-forward vibe",
-    label: "Night out",
-  },
-  {
-    value:
-      "music festival outdoors; youthful playful energy; street-style vibe; sunlit daytime; fun accessories, not cluttered",
-    label: "Festival",
-  },
-  {
-    value:
-      "vacation / resort lifestyle; breezy sun-kissed look; relaxed luxury; airy atmosphere; bright natural light",
-    label: "Vacation / Resort",
-  },
-  {
-    value:
-      "beachwear coastal; sunny seaside environment; clean sand and gentle water; airy warm-weather vibe; uncluttered",
-    label: "Beachwear",
-  },
-  {
-    value:
-      "modern workwear; office-ready smart casual; polished and professional; clean interior; soft diffused daylight",
-    label: "Work / Office",
-  },
-  { value: "custom", label: "Custom" },
-];
-
-const occasionPresetLabelByValue: Record<string, string> = Object.fromEntries(
-  occasionPresetOptions
-    .filter((o) => o.value && o.value !== "custom")
-    .map((o) => [o.value, o.label]),
-);
-
 const occasionFinal = computed(() =>
   activeConfig.value.occasionPreset === "custom"
     ? activeConfig.value.occasionDetails.trim()
@@ -1495,100 +724,15 @@ const occasionFinal = computed(() =>
       }),
 );
 
-const footwearPresetLabels: Record<string, string> = {
-  white_sneakers: "White sneakers",
-  chunky_sneakers: "Chunky sneakers",
-  strappy_heels: "Strappy heels",
-  block_heels: "Block heels",
-  minimal_sandals: "Minimal sandals",
-  platform_sandals: "Platform sandals",
-  ankle_boots: "Ankle boots",
-  knee_boots: "Knee-high boots",
-  ballet_flats: "Ballet flats",
-  loafers: "Loafers",
-  mules: "Mules",
-  slides: "Slides",
-};
-
-const footwearPresetKeywords: Record<string, string> = {
-  white_sneakers: "clean white sneakers, modern, minimal, ecommerce-friendly",
-  chunky_sneakers: "chunky sneakers, trendy, streetwear-leaning, modern",
-  strappy_heels: "strappy heels, sleek, going-out, elegant",
-  block_heels: "block heels, comfortable, modern, polished",
-  minimal_sandals: "minimal sandals, neutral, clean, warm-weather",
-  platform_sandals: "platform sandals, trendy, bold, fashion-forward",
-  ankle_boots: "ankle boots, modern, sleek, versatile",
-  knee_boots: "knee-high boots, statement, sleek, fashion-forward",
-  ballet_flats: "ballet flats, feminine, classic, minimal",
-  loafers: "loafers, smart casual, modern, polished",
-  mules: "mules, chic, minimal, elevated casual",
-  slides: "slides, casual, modern, warm-weather",
-};
-
 const footwearFinal = computed(() =>
   activeConfig.value.footwearPreset === "custom"
     ? activeConfig.value.footwearDetails.trim()
     : combinePresetAndCustom({
-        presetText: footwearPresetKeywords[activeConfig.value.footwearPreset] ?? activeConfig.value.footwearPreset,
+        presetText:
+          footwearPresetKeywordsByValue[activeConfig.value.footwearPreset] ?? activeConfig.value.footwearPreset,
         customText: activeConfig.value.footwearDetails,
         joiner: ", ",
       }),
-);
-
-const stylePresetOptions: Array<{ value: string; label: string }> = [
-  { value: "", label: "Auto" },
-  {
-    value:
-      "minimal clean modern styling; premium basics; crisp lines; neutral palette; no loud logos; ecommerce lookbook vibe",
-    label: "Minimal / Clean",
-  },
-  {
-    value:
-      "quiet luxury; understated tailoring; premium fabrics; refined proportions; neutral/earth tones; no flashy branding",
-    label: "Quiet luxury",
-  },
-  {
-    value:
-      "classic timeless styling; wardrobe staples; polished and modern; clean lines; subtle elegance; premium feel",
-    label: "Classic / Timeless",
-  },
-  {
-    value:
-      "contemporary streetwear; urban modern; relaxed silhouette; trendy styling; bold but clean; ecommerce editorial vibe",
-    label: "Streetwear",
-  },
-  {
-    value:
-      "boho relaxed airy styling; earthy textures; soft movement; natural materials; effortless, sunlit lifestyle vibe",
-    label: "Boho",
-  },
-  {
-    value:
-      "romantic feminine styling; soft delicate details; graceful silhouette; flattering look; light airy mood; tasteful",
-    label: "Romantic / Feminine",
-  },
-  {
-    value:
-      "vintage / Y2K inspired; playful nostalgic energy; early-2000s vibe; trendy styling; clean modern execution",
-    label: "Vintage / Y2K",
-  },
-  {
-    value:
-      "coastal resort lifestyle; breezy sun-kissed styling; linen textures; relaxed luxury; Mediterranean vacation vibe",
-    label: "Coastal / Resort",
-  },
-  {
-    value:
-      "edgy bold styling; high-contrast palette; confident modern vibe; statement accessories (minimal count); clean framing",
-    label: "Edgy / Bold",
-  },
-  { value: "custom", label: "Custom" },
-];
-
-const stylePresetLabelByValue: Record<string, string> = Object.fromEntries(
-  stylePresetOptions
-    .filter((o) => o.value && o.value !== "custom")
-    .map((o) => [o.value, o.label]),
 );
 
 const stylePresetText = computed(() =>
@@ -1617,70 +761,31 @@ const backgroundThemeFinal = computed(() =>
       }),
 );
 
-	const modelEthnicityFinal = computed(() =>
-	  activeConfig.value.modelPreset === "custom"
-	    ? activeConfig.value.modelDetails.trim()
-	    : combinePresetAndCustom({
-	        presetText: activeConfig.value.modelPreset,
-	        customText: activeConfig.value.modelDetails,
-	        joiner: ", ",
-	      }),
-	);
-
-const modelStylingPresetOptions: Array<{ value: string; label: string }> = [
-  { value: "", label: "Auto" },
-  {
-    value:
-      "natural glam makeup; fresh dewy skin; softly defined eyes; subtle lip; polished but effortless; ecommerce-friendly",
-    label: "Natural glam",
-  },
-  {
-    value:
-      "soft glam; slightly more defined eye makeup; luminous skin; refined look; editorial but wearable; premium finish",
-    label: "Soft glam",
-  },
-  {
-    value:
-      "minimal jewelry; small hoops or studs; delicate necklace; understated accessories; premium, clean styling",
-    label: "Minimal jewelry",
-  },
-  {
-    value: "hair up; clean bun or sleek ponytail; tidy flyaways; modern polished styling; premium look",
-    label: "Hair up",
-  },
-  {
-    value: "sleek hair; straight or slicked-back; glossy finish; modern editorial styling; premium feel",
-    label: "Sleek",
-  },
-  {
-    value:
-      "beachy styling; loose natural waves; sun-kissed vibe; natural makeup; minimal jewelry; airy warm-weather mood",
-    label: "Beachy",
-  },
-  { value: "custom", label: "Custom" },
-];
-
-const modelStylingPresetLabelByValue: Record<string, string> = Object.fromEntries(
-  modelStylingPresetOptions
-    .filter((o) => o.value && o.value !== "custom")
-    .map((o) => [o.value, o.label]),
+const modelEthnicityFinal = computed(() =>
+  activeConfig.value.modelPreset === "custom"
+    ? activeConfig.value.modelDetails.trim()
+    : combinePresetAndCustom({
+        presetText: activeConfig.value.modelPreset,
+        customText: activeConfig.value.modelDetails,
+        joiner: ", ",
+      }),
 );
 
-	const modelStylingPresetText = computed(() =>
-	  activeConfig.value.modelStylingPreset && activeConfig.value.modelStylingPreset !== "custom"
-	    ? activeConfig.value.modelStylingPreset
-	    : "",
-	);
+const modelStylingPresetText = computed(() =>
+  activeConfig.value.modelStylingPreset && activeConfig.value.modelStylingPreset !== "custom"
+    ? activeConfig.value.modelStylingPreset
+    : "",
+);
 
-	const modelStylingNotesFinal = computed(() =>
-	  activeConfig.value.modelStylingPreset === "custom"
-	    ? activeConfig.value.modelStylingNotes.trim()
-	    : combinePresetAndCustom({
-	        presetText: modelStylingPresetText.value,
-	        customText: activeConfig.value.modelStylingNotes,
-	        joiner: ", ",
-	      }),
-	);
+const modelStylingNotesFinal = computed(() =>
+  activeConfig.value.modelStylingPreset === "custom"
+    ? activeConfig.value.modelStylingNotes.trim()
+    : combinePresetAndCustom({
+        presetText: modelStylingPresetText.value,
+        customText: activeConfig.value.modelStylingNotes,
+        joiner: ", ",
+      }),
+);
 
 async function onGenerateLook() {
   const runtime = activeRuntime.value;

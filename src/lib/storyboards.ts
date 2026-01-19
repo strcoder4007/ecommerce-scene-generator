@@ -19,11 +19,7 @@ const OCCASION_PRESET_VALUES = {
   beachwear:
     "beachwear coastal; sunny seaside environment; clean sand and gentle water; airy warm-weather vibe; uncluttered",
   workwear:
-    "modern workwear; office-ready smart casual; polished and professional; clean interior; soft diffused daylight",
-  wedding_guest:
-    "wedding guest semi-formal; elegant tasteful styling; celebratory mood; soft flattering light; premium details",
-  athleisure:
-    "athleisure sporty-chic; modern clean activewear styling; comfortable and trendy; bright natural light; minimal props",
+    "modern workwear; office-ready smart casual; polished and professional; clean interior; soft diffused daylight"
 } as const;
 
 const STYLE_PRESET_VALUES = {
@@ -35,8 +31,6 @@ const STYLE_PRESET_VALUES = {
     "classic timeless styling; wardrobe staples; polished and modern; clean lines; subtle elegance; premium feel",
   streetwear:
     "contemporary streetwear; urban modern; relaxed silhouette; trendy styling; bold but clean; ecommerce editorial vibe",
-  sporty:
-    "sporty athleisure styling; clean modern activewear vibe; performance-inspired details; comfortable and trendy; minimal branding",
   boho:
     "boho relaxed airy styling; earthy textures; soft movement; natural materials; effortless, sunlit lifestyle vibe",
   romantic:
@@ -137,9 +131,9 @@ function normalizeBackgroundThemePreset(value: string): string {
     "mediterranean terrace":
       "mediterranean terrace — white stucco; stone tiles; olive trees; coastal Europe resort vibe; bright sun; airy open space; clean composition",
     concert:
-      "concert venue — modern music venue; stage lights as soft bokeh; energetic atmosphere; keep product framing clean and readable, model should be standing in the crowd.",
+      "EDM concert / music festival stage — realistic nighttime crowd scene; high-energy but clean composition; colorful neon lasers and LED screens; soft bokeh stage lighting; light haze/fog and confetti optional, model should be in the crowd",
     "live music concert":
-      "concert venue — modern music venue; stage lights as soft bokeh; energetic atmosphere; keep product framing clean and readable, model should be standing in the crowd.",
+      "concert venue — EDM concert / music festival stage — realistic nighttime crowd scene; high-energy but clean composition; colorful neon lasers and LED screens; soft bokeh stage lighting; light haze/fog and confetti optional, model should be in the crowd",
     nightclub:
       "nightclub lounge — upscale lounge; subtle neon accents; stylish nightlife vibe; moody but clean lighting; uncluttered background",
     "bar nightclub":
