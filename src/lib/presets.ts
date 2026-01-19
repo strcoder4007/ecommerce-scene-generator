@@ -154,11 +154,6 @@ export const modelStylingPresetOptions: Option[] = [
   { value: "", label: "Auto" },
   {
     value:
-      "clean girl aesthetic; glossy minimal makeup; natural-looking skin; sleek bun or ponytail; minimal jewelry; fresh youthful look",
-    label: "Clean girl",
-  },
-  {
-    value:
       "natural glam makeup; fresh dewy skin; softly defined eyes; subtle lip; polished but effortless; ecommerce-friendly",
     label: "Natural glam",
   },
@@ -190,6 +185,57 @@ export const modelStylingPresetOptions: Option[] = [
 
 export const modelStylingPresetLabelByValue: Record<string, string> = Object.fromEntries(
   modelStylingPresetOptions
+    .filter((o) => o.value && o.value !== "custom")
+    .map((o) => [o.value, o.label]),
+);
+
+export const modelPosePresetOptions: Option[] = [
+  { value: "", label: "Auto" },
+  {
+    value:
+      "standing front-facing ecommerce hero pose; full-body head-to-toe; relaxed weight shift (S-curve); shoulders relaxed; arms slightly away from torso; hands relaxed; garment fully visible and unobstructed",
+    label: "Standing front (hero)",
+  },
+  {
+    value:
+      "standing three-quarter turn (30–45°) toward camera; natural weight shift; slight torso twist; relaxed hands; shows silhouette and garment drape; clean ecommerce pose; garment unobstructed",
+    label: "Standing 3/4 turn",
+  },
+  {
+    value:
+      "natural walking step; one foot forward; subtle motion; relaxed arms; soft smile; shows garment movement/drape; full-body head-to-toe with feet visible; product-first",
+    label: "Walking step",
+  },
+  {
+    value:
+      "casual lean pose; slight lean on one leg; gentle shoulder tilt; relaxed arms; one hand lightly on hip or along thigh; clean commercial look; garment unobstructed",
+    label: "Casual lean",
+  },
+  {
+    value:
+      "hand on hip; other arm relaxed; confident but friendly; clean ecommerce full-body stance; keeps garment unobstructed; no aggressive posture",
+    label: "Hand on hip",
+  },
+  {
+    value:
+      "hands in pockets (if garment allows); relaxed stance; slight weight shift; shoulders relaxed; clean ecommerce look; ensure garment details remain visible",
+    label: "Hands in pockets",
+  },
+  {
+    value:
+      "seated on a simple studio stool; upright posture; relaxed shoulders; legs uncrossed; feet/shoes visible; full-body head-to-toe framing; garment unobstructed",
+    label: "Sitting (stool)",
+  },
+  {
+    value:
+      "seated on steps/bench in a clean setting; upright posture; legs naturally placed (not crossed); feet visible; relaxed hands; full-body head-to-toe framing; garment unobstructed",
+    label: "Sitting (steps/bench)",
+  },
+  { value: "custom", label: "Custom" },
+];
+
+export const modelPosePresetLabelByValue: Record<string, string> = Object.fromEntries(
+  modelPosePresetOptions
     .filter((o) => o.value && o.value !== "custom")
     .map((o) => [o.value, o.label]),
 );
@@ -270,7 +316,7 @@ export const backgroundThemeOptions: Option[] = [
   },
   {
     value:
-      "EDM concert / music festival stage — realistic nighttime crowd scene; high-energy but clean composition; colorful neon lasers and LED screens; soft bokeh stage lighting; light haze/fog and confetti optional, model should be in the crowd",
+      "EDM concert / music festival stage — realistic nighttime crowd scene; high-energy but clean composition; colorful neon lasers and LED screens; soft bokeh stage lighting; light haze/fog and confetti optional, model should be in the crowd, it should look realistic",
     label: "Concert",
   },
   {

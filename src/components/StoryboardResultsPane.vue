@@ -101,6 +101,49 @@
             <path d="M16 19h3v-3" />
           </svg>
         </button>
+        <button
+          type="button"
+          class="btnGhost iconButton"
+          @click="toggleRetry"
+          :aria-expanded="retryOpen"
+          aria-label="Retry main image"
+          title="Retry"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+            <path d="M21 3v6h-6" />
+          </svg>
+        </button>
+      </div>
+
+      <div v-if="retryOpen" style="margin-top: 14px">
+        <FieldLabel label="Retry Comments" info="Add targeted improvements for this retry pass." htmlFor="retryComments" />
+        <input
+          id="retryComments"
+          class="control"
+          type="text"
+          v-model="retryComments"
+          placeholder="What improvements would you like?"
+        />
+        <div class="actions" style="margin-top: 12px; justify-content: flex-end">
+          <button
+            type="button"
+            class="btnPrimary"
+            @click="emitRetry"
+            :disabled="isGenerating"
+          >
+            Generate
+          </button>
+        </div>
       </div>
     </template>
 
@@ -272,6 +315,8 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
+
 import FieldLabel from "./FieldLabel.vue";
 import Spinner from "./Spinner.vue";
 
@@ -307,10 +352,22 @@ defineProps<{
   onResultImagePointerLeave: (event: PointerEvent) => void;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: "open-image", src: string, title: string, alt?: string): void;
+  (e: "retry", comment: string): void;
   (e: "generate-angles"): void;
   (e: "download-all"): void;
 }>();
-</script>
 
+const retryOpen = ref(false);
+const retryComments = ref("");
+
+function toggleRetry() {
+  retryOpen.value = !retryOpen.value;
+}
+
+function emitRetry() {
+  emit("retry", retryComments.value);
+  retryOpen.value = false;
+}
+</script>

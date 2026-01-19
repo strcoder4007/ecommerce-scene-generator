@@ -58,13 +58,14 @@
               :runtime="activeRuntime"
               :computed-timings="computedTimings"
               :format-duration-ms="formatDurationMs"
-              :mime-to-extension="mimeToExtension"
-              :on-result-image-pointer-move="onResultImagePointerMove"
-              :on-result-image-pointer-leave="onResultImagePointerLeave"
-              @open-image="openImageModal"
-              @generate-angles="generateMultipleAngles"
-              @download-all="downloadAllImages"
-            />
+	              :mime-to-extension="mimeToExtension"
+	              :on-result-image-pointer-move="onResultImagePointerMove"
+	              :on-result-image-pointer-leave="onResultImagePointerLeave"
+	              @open-image="openImageModal"
+	              @retry="retryMainImage"
+	              @generate-angles="generateMultipleAngles"
+	              @download-all="downloadAllImages"
+	            />
           </div>
         </div>
       </div>
@@ -102,6 +103,7 @@ import {
   footwearPresetKeywordsByValue,
   footwearPresetLabelByValue,
   modelStylingPresetLabelByValue,
+  modelPosePresetLabelByValue,
   occasionPresetLabelByValue,
   stylePresetLabelByValue,
 } from "./lib/presets";
@@ -118,6 +120,7 @@ import {
   applyFreeformOverrides,
   buildCompositePrompt,
   buildGarmentReferencePrompt,
+  buildRetryCompositePrompt,
   buildMultiAnglePrompt,
   computeTimingsMs,
   generateFinalPrompt,
@@ -358,6 +361,16 @@ function formatStoryboardTimestamp(iso: string): string {
 	      ? cfg.modelDetails.trim()
 	      : combinePresetAndCustom({ presetText: cfg.modelPreset, customText: cfg.modelDetails, joiner: ", " });
 	  if (ethnicity) parts.push(`Model: ${ethnicity}`);
+
+    const modelPosePresetLabel =
+      cfg.modelPosePreset && cfg.modelPosePreset !== "custom"
+        ? modelPosePresetLabelByValue[cfg.modelPosePreset] ?? cfg.modelPosePreset
+        : "";
+    const modelPose =
+      cfg.modelPosePreset === "custom"
+        ? cfg.modelPoseDetails.trim()
+        : combinePresetAndCustom({ presetText: modelPosePresetLabel, customText: cfg.modelPoseDetails, joiner: ", " });
+    if (modelPose) parts.push(`Pose: ${modelPose}`);
 
 		  const stylingPresetText =
 		    cfg.modelStylingPreset && cfg.modelStylingPreset !== "custom"
@@ -771,6 +784,16 @@ const modelEthnicityFinal = computed(() =>
       }),
 );
 
+const modelPoseFinal = computed(() =>
+  activeConfig.value.modelPosePreset === "custom"
+    ? activeConfig.value.modelPoseDetails.trim()
+    : combinePresetAndCustom({
+        presetText: activeConfig.value.modelPosePreset,
+        customText: activeConfig.value.modelPoseDetails,
+        joiner: ", ",
+      }),
+);
+
 const modelStylingPresetText = computed(() =>
   activeConfig.value.modelStylingPreset && activeConfig.value.modelStylingPreset !== "custom"
     ? activeConfig.value.modelStylingPreset
@@ -834,14 +857,15 @@ async function onGenerateLook() {
 
     generationStepIndex.value = 1;
 
-		    const userOverrides = {
-		      occasion: occasionFinal.value || null,
-		      color_scheme: activeConfig.value.colorScheme.trim() || null,
-		      background_theme: backgroundThemeFinal.value || null,
-		      footwear: footwearFinal.value || null,
-		      model_ethnicity: modelEthnicityFinal.value || null,
-		      model_styling_notes: modelStylingNotesFinal.value || null,
-		    };
+			    const userOverrides = {
+			      occasion: occasionFinal.value || null,
+			      color_scheme: activeConfig.value.colorScheme.trim() || null,
+			      background_theme: backgroundThemeFinal.value || null,
+			      footwear: footwearFinal.value || null,
+			      model_ethnicity: modelEthnicityFinal.value || null,
+            model_pose: modelPoseFinal.value || null,
+			      model_styling_notes: modelStylingNotesFinal.value || null,
+			    };
 
     let plan: LookPlan;
     const tPlan0 = performance.now();
@@ -861,20 +885,21 @@ async function onGenerateLook() {
     } catch (err: any) {
       planError = err?.message || String(err);
       const ov = userOverrides;
-	      plan = {
-	        occasion: ov.occasion || "casual",
-	        color_scheme: ov.color_scheme || "neutral",
-	        print_style: "as-is",
-	        style_keywords: [],
-	        background_theme: ov.background_theme || ov.occasion || "casual",
-	        footwear: ov.footwear || "",
-	        accessories: [],
-	        negative_prompt:
-	          "blurry, low quality, incorrect garment, altered design, wrong print, extra limbs, deformed hands, text overlay, watermark",
-	        model_ethnicity: ov.model_ethnicity || "",
-	        model_styling_notes: ov.model_styling_notes || "",
-	      };
-	    }
+		      plan = {
+		        occasion: ov.occasion || "casual",
+		        color_scheme: ov.color_scheme || "neutral",
+		        print_style: "as-is",
+		        style_keywords: [],
+		        background_theme: ov.background_theme || ov.occasion || "casual",
+		        footwear: ov.footwear || "",
+		        accessories: [],
+		        negative_prompt:
+		          "blurry, low quality, incorrect garment, altered design, wrong print, extra limbs, deformed hands, text overlay, watermark",
+		        model_ethnicity: ov.model_ethnicity || "",
+		        model_pose: ov.model_pose || "",
+		        model_styling_notes: ov.model_styling_notes || "",
+		      };
+		    }
     timings.plan = Math.round(performance.now() - tPlan0);
 
 	    plan = applyFreeformOverrides(plan, {
@@ -955,22 +980,137 @@ async function onGenerateLook() {
       api_total: Object.values(timings).reduce((a, b) => a + b, 0),
     };
 
-	    runtime.chosenSummary = {
-	      occasion: plan.occasion,
-	      color_scheme: plan.color_scheme,
-	      print_style: plan.print_style,
-	      style_keywords: plan.style_keywords,
-	      footwear: plan.footwear,
-	      accessories: plan.accessories,
-	      background_theme: plan.background_theme,
-	      model_ethnicity: plan.model_ethnicity,
-	    };
+		    runtime.chosenSummary = {
+		      occasion: plan.occasion,
+		      color_scheme: plan.color_scheme,
+		      print_style: plan.print_style,
+		      style_keywords: plan.style_keywords,
+		      footwear: plan.footwear,
+		      accessories: plan.accessories,
+		      background_theme: plan.background_theme,
+		      model_ethnicity: plan.model_ethnicity,
+		      model_pose: plan.model_pose,
+		    };
 
 	    runtime.debugSummary = {
 	      timings_ms: runtime.resultTimingsMs,
 	      plan_error: planError,
 	      ...debug,
 	    };
+  } catch (err: any) {
+    runtime.generateError = err?.message || String(err);
+  } finally {
+    isGenerating.value = false;
+    stopGenerationTimer();
+    generationStepIndex.value = 0;
+  }
+}
+
+async function retryMainImage(retryComment: string) {
+  const runtime = activeRuntime.value;
+  runtime.generateError = null;
+
+  if (!geminiApiKey.value.trim()) {
+    runtime.generateError = "Please paste your API key (BYO key).";
+    return;
+  }
+  if (!runtime.resultDataUrl || !runtime.garmentRefDataUrl || !runtime.lastPlan || !runtime.lastFinalPrompt) {
+    runtime.generateError = "Generate the main image first, then you can retry.";
+    return;
+  }
+
+  isGenerating.value = true;
+  generationStepIndex.value = 3;
+  startGenerationTimer();
+
+  const timings: Record<string, number> = {};
+  const debug: any = { retry_comment: (retryComment || "").trim() };
+
+  try {
+    const basePlan = safeClone(runtime.lastPlan);
+    let plan: LookPlan = basePlan;
+
+    const occasionOverride = (occasionFinal.value || "").trim();
+    if (occasionOverride) plan.occasion = occasionOverride;
+
+    const colorOverride = activeConfig.value.colorScheme.trim();
+    if (colorOverride) plan.color_scheme = colorOverride;
+
+    const backgroundOverride = (backgroundThemeFinal.value || "").trim();
+    if (backgroundOverride) plan.background_theme = backgroundOverride;
+
+    const footwearOverride = (footwearFinal.value || "").trim();
+    if (footwearOverride) plan.footwear = footwearOverride;
+
+    const modelOverride = (modelEthnicityFinal.value || "").trim();
+    if (modelOverride) plan.model_ethnicity = modelOverride;
+
+    const poseOverride = (modelPoseFinal.value || "").trim();
+    if (poseOverride) plan.model_pose = poseOverride;
+
+    const stylingNotesOverride = (modelStylingNotesFinal.value || "").trim();
+    if (stylingNotesOverride) plan.model_styling_notes = stylingNotesOverride;
+
+    plan = applyFreeformOverrides(plan, {
+      styleKeywords: styleKeywordsFinal.value ? parseLocalTags(styleKeywordsFinal.value) : undefined,
+      accessories: activeConfig.value.accessories.trim() ? parseLocalTags(activeConfig.value.accessories) : undefined,
+      footwear: footwearOverride || null,
+    });
+
+    runtime.lastPlan = safeClone(plan);
+
+    const compositePrompt = buildRetryCompositePrompt({
+      plan,
+      finalPrompt: runtime.lastFinalPrompt || "",
+      hasModelReference: false,
+      hasBackgroundReference: false,
+      retryComment,
+    });
+    debug.composite_prompt = compositePrompt;
+    debug.final_prompt = runtime.lastFinalPrompt;
+    debug.negative_prompt = plan.negative_prompt;
+
+    generationStepIndex.value = 3;
+    const t0 = performance.now();
+    const garmentRefInline = dataUrlToInlineImage(runtime.garmentRefDataUrl);
+    const composite = await generateImage({
+      apiKey: geminiApiKey.value,
+      model: "gemini-3-pro-image-preview",
+      promptText: compositePrompt,
+      images: [garmentRefInline],
+      aspectRatio: "3:4",
+      width: 1080,
+      height: 1440,
+      timeoutMs: 180_000,
+    });
+    timings.composite = Math.round(performance.now() - t0);
+
+    runtime.resultMimeType = composite.mimeType;
+    runtime.resultDataUrl = `data:${composite.mimeType};base64,${composite.imageBase64}`;
+
+    runtime.angles = createDefaultAnglesRuntime();
+
+    runtime.resultTimingsMs = {
+      ...timings,
+      api_total: Object.values(timings).reduce((a, b) => a + b, 0),
+    };
+
+    runtime.chosenSummary = {
+      occasion: plan.occasion,
+      color_scheme: plan.color_scheme,
+      print_style: plan.print_style,
+      style_keywords: plan.style_keywords,
+      footwear: plan.footwear,
+      accessories: plan.accessories,
+      background_theme: plan.background_theme,
+      model_ethnicity: plan.model_ethnicity,
+      model_pose: plan.model_pose,
+    };
+
+    runtime.debugSummary = {
+      timings_ms: runtime.resultTimingsMs,
+      ...debug,
+    };
   } catch (err: any) {
     runtime.generateError = err?.message || String(err);
   } finally {

@@ -18,6 +18,7 @@ export type LookPlan = {
   accessories: string[];
   negative_prompt: string;
   model_ethnicity: string;
+  model_pose: string;
   model_styling_notes: string;
 };
 
@@ -28,6 +29,7 @@ export type LookOverrides = {
   background_theme?: string | null;
   footwear?: string | null;
   model_ethnicity?: string | null;
+  model_pose?: string | null;
   model_styling_notes?: string | null;
 };
 
@@ -82,6 +84,7 @@ function overrideLines(overrides: LookOverrides): string[] {
     ["background_theme", overrides.background_theme],
     ["footwear", overrides.footwear],
     ["model_ethnicity", overrides.model_ethnicity],
+    ["model_pose", overrides.model_pose],
     ["model_styling_notes", overrides.model_styling_notes],
   ];
 
@@ -154,6 +157,7 @@ Return JSON with exactly these keys:
 		  "accessories": array of strings (0-6 items; realistic),
 		  "negative_prompt": string (short avoid clause; include things like cropped head/feet, tiny/distant product, close-up portrait, extra limbs, blur, text/watermarks, extra fabric/layers, and any style-guide violations),
 		  "model_ethnicity": string,
+		  "model_pose": string (short; main-image pose direction such as "front hero", "3/4 turn", "walking step"; keep it ecommerce-friendly and full-body),
 		  "model_styling_notes": string (short; hair/makeup/jewelry guidance)
 		}`.trim();
 
@@ -190,6 +194,10 @@ Return JSON with exactly these keys:
     "blurry, low quality, cropped head, cropped feet, incorrect garment, altered design, extra fabric, added layers, wrong print, extra limbs, deformed hands, extra people, text overlay, watermark";
   const model_ethnicity =
     coerceStr(opts.userOverrides.model_ethnicity) || coerceStr(rawJson.model_ethnicity) || "";
+  const model_pose =
+    coerceStr(opts.userOverrides.model_pose) ||
+    coerceStr(rawJson.model_pose) ||
+    "";
   const model_styling_notes =
     coerceStr(opts.userOverrides.model_styling_notes) ||
     coerceStr(rawJson.model_styling_notes) ||
@@ -206,6 +214,7 @@ Return JSON with exactly these keys:
       accessories,
       negative_prompt,
       model_ethnicity,
+      model_pose,
       model_styling_notes,
     },
     rawText: result.text,
@@ -287,7 +296,7 @@ Style guide baseline to incorporate (must match this look):
 - Warm, sunny, polished, approachable, slightly editorial; “vacation wardrobe lookbook” vibe. Not gritty street-style; not dramatic high-fashion.
 - Camera: vertical 3:4 full-body shot, 35–50mm look, eye-level, f/3.2–f/4 shallow separation, crisp focus.
 - Lighting: natural daylight look with soft front-side light (10–45°) and gentle fill; medium contrast; warm midtones; realistic shadows.
-- Pose: natural weight shift (S-curve), legs uncrossed, slight torso twist/shoulder tilt to show silhouette + neckline, relaxed hands (light touch on fabric/hip/railing; no clenched fists), slight head tilt, soft smile; optional subtle step/sway to show drape.
+- Pose: ${opts.plan.model_pose ? `follow this direction: ${opts.plan.model_pose}` : "natural weight shift (S-curve), legs uncrossed, slight torso twist/shoulder tilt to show silhouette + neckline, relaxed hands (light touch on fabric/hip/railing; no clenched fists), slight head tilt, soft smile; optional subtle step/sway to show drape."}
 - Garment presentation: wrinkle-free/steamed look; fit and drape clearly visible; keep neckline/waistline/hemline readable.
 - Composition: rule-of-thirds friendly, clean commercial framing with a little breathing room (while keeping full body + product large).
 - Finish: warm skin tones, vivid-but-natural color, fabric micro-contrast/sharpness, natural skin texture (no plastic/CGI look).
@@ -299,6 +308,7 @@ Styling plan:
 	- style_keywords: ${opts.plan.style_keywords.length ? opts.plan.style_keywords.join(", ") : "(none)"}
 	- footwear: ${opts.plan.footwear || "(auto)"}
 	- accessories: ${opts.plan.accessories.length ? opts.plan.accessories.join(", ") : "(none)"}
+	- model_pose: ${opts.plan.model_pose || "(auto)"}
 	- model_styling_notes: ${opts.plan.model_styling_notes || "(none)"}
 
 Negative guidance to incorporate (as a short avoid clause): ${opts.plan.negative_prompt}
@@ -357,7 +367,9 @@ export function buildCompositePrompt(opts: {
     "The product is the hero: keep the garment accurate and undistorted.",
     "Style baseline: warm, sunny, polished, approachable, slightly editorial. Aspirational lifestyle (vacation wardrobe lookbook). Not gritty street-style; not dramatic high-fashion.",
     "Camera & lighting: vertical 3:4 full-body, 35–50mm look, eye-level, f/3.2–f/4 separation, natural daylight with soft front-side light and gentle fill; medium contrast; warm midtones; crisp focus with visible fabric texture.",
-    "Pose direction: natural weight shift (S-curve), legs uncrossed, slight torso twist/shoulder tilt, relaxed hands lightly touching fabric/hip/railing (no clenched fists), slight head tilt, soft smile; optional subtle step/sway to show drape.",
+    opts.plan.model_pose
+      ? `Pose direction (must follow): ${opts.plan.model_pose}`
+      : "Pose direction: natural weight shift (S-curve), legs uncrossed, slight torso twist/shoulder tilt, relaxed hands lightly touching fabric/hip/railing (no clenched fists), slight head tilt, soft smile; optional subtle step/sway to show drape.",
     "Garment presentation: wrinkle-free/steamed look, clear fit and drape, keep neckline/waistline/hemline readable; keep hair/props from covering the garment.",
     "Composition: rule-of-thirds friendly, clean commercial framing with a little breathing room (while keeping full body + product large).",
     "IMAGE 1 is the GARMENT REFERENCE (clean catalog cutout derived from the input garment photo). Use it as the single source of truth for garment design (color, print, texture, seams, silhouette).",
@@ -406,6 +418,9 @@ export function buildCompositePrompt(opts: {
   if (opts.plan.style_keywords.length) {
     lines.push("Style keywords: " + opts.plan.style_keywords.join(", "));
   }
+  if (opts.plan.model_pose) {
+    lines.push("Model pose: " + opts.plan.model_pose);
+  }
   if (opts.plan.model_styling_notes) {
     lines.push("Model styling notes: " + opts.plan.model_styling_notes);
   }
@@ -427,6 +442,41 @@ export function buildCompositePrompt(opts: {
   );
   lines.push(`Avoid: ${avoid}`);
   return lines.join("\n").trim();
+}
+
+export function buildRetryCompositePrompt(opts: {
+  plan: LookPlan;
+  finalPrompt: string;
+  hasModelReference: boolean;
+  hasBackgroundReference: boolean;
+  retryComment: string;
+}): string {
+  const base = buildCompositePrompt({
+    plan: opts.plan,
+    finalPrompt: opts.finalPrompt,
+    hasModelReference: opts.hasModelReference,
+    hasBackgroundReference: opts.hasBackgroundReference,
+  });
+
+  const comment = (opts.retryComment || "").trim();
+  const header: string[] = [
+    "RETRY PASS (main image): This is a re-generation of the main image for the SAME garment.",
+    "Keep the garment design identical and follow all hard framing + fidelity rules.",
+    "Apply the user's retry comments as targeted improvements; do not introduce new clothing elements or extra fabric.",
+    `Occasion: ${opts.plan.occasion || "(auto)"}`,
+    `Color scheme: ${opts.plan.color_scheme || "(auto)"}`,
+    `Background theme: ${opts.plan.background_theme || "(auto)"}`,
+    `Model: ${opts.plan.model_ethnicity || "(auto)"}`,
+    `Model pose: ${opts.plan.model_pose || "(auto)"}`,
+    `Footwear: ${opts.plan.footwear || "(auto)"}`,
+    `Accessories: ${opts.plan.accessories.length ? opts.plan.accessories.join(", ") : "(auto)"}`,
+    `Style keywords: ${opts.plan.style_keywords.length ? opts.plan.style_keywords.join(", ") : "(auto)"}`,
+    `Model styling notes: ${opts.plan.model_styling_notes || "(auto)"}`,
+  ];
+  if (comment) header.push(`User retry comments: ${comment}`);
+  header.push("");
+
+  return header.join("\n") + base;
 }
 
 export type MultiAngleKind = "side" | "back";

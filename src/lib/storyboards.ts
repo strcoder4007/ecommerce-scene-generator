@@ -71,6 +71,8 @@ export type StoryboardConfig = {
   backgroundThemeDetails: string;
   modelPreset: string;
   modelDetails: string;
+  modelPosePreset: string;
+  modelPoseDetails: string;
   modelStylingPreset: string;
   modelStylingNotes: string;
   includeDebugStr: "no" | "yes";
@@ -98,6 +100,8 @@ export function createDefaultStoryboardConfig(): StoryboardConfig {
     backgroundThemeDetails: "",
     modelPreset: "White / European",
     modelDetails: "",
+    modelPosePreset: "",
+    modelPoseDetails: "",
     modelStylingPreset: "",
     modelStylingNotes: "",
     includeDebugStr: "no",
@@ -131,9 +135,9 @@ function normalizeBackgroundThemePreset(value: string): string {
     "mediterranean terrace":
       "mediterranean terrace — white stucco; stone tiles; olive trees; coastal Europe resort vibe; bright sun; airy open space; clean composition",
     concert:
-      "EDM concert / music festival stage — realistic nighttime crowd scene; high-energy but clean composition; colorful neon lasers and LED screens; soft bokeh stage lighting; light haze/fog and confetti optional, model should be in the crowd",
+      "EDM concert / music festival stage — realistic nighttime crowd scene; high-energy but clean composition; colorful neon lasers and LED screens; soft bokeh stage lighting; light haze/fog and confetti optional, model should be in the crowd, it should look realistic",
     "live music concert":
-      "concert venue — EDM concert / music festival stage — realistic nighttime crowd scene; high-energy but clean composition; colorful neon lasers and LED screens; soft bokeh stage lighting; light haze/fog and confetti optional, model should be in the crowd",
+      "concert venue — EDM concert / music festival stage — realistic nighttime crowd scene; high-energy but clean composition; colorful neon lasers and LED screens; soft bokeh stage lighting; light haze/fog and confetti optional, model should be in the crowd, it should look realistic",
     nightclub:
       "nightclub lounge — upscale lounge; subtle neon accents; stylish nightlife vibe; moody but clean lighting; uncluttered background",
     "bar nightclub":
@@ -242,6 +246,8 @@ function normalizeConfig(value: unknown): StoryboardConfig {
     backgroundThemeDetails: asString(raw.backgroundThemeDetails) ?? base.backgroundThemeDetails,
     modelPreset: asString(raw.modelPreset) ?? base.modelPreset,
     modelDetails: asString(raw.modelDetails) ?? base.modelDetails,
+    modelPosePreset: asString(raw.modelPosePreset) ?? base.modelPosePreset,
+    modelPoseDetails: asString(raw.modelPoseDetails) ?? base.modelPoseDetails,
     modelStylingPreset: normalizeModelStylingPreset(asString(raw.modelStylingPreset) ?? base.modelStylingPreset),
     modelStylingNotes: asString(raw.modelStylingNotes) ?? base.modelStylingNotes,
     includeDebugStr: includeDebugStr === "yes" ? "yes" : "no",

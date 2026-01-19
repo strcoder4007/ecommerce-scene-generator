@@ -191,6 +191,28 @@
 
           <div>
             <FieldLabel
+              label="Model pose"
+              info="Choose a natural ecommerce pose for the main image (standing, full-body). Pick a preset and optionally add details. If you set both, they will be combined."
+            />
+            <PillRadioGroup
+              name="modelPose"
+              :model-value="config.modelPosePreset"
+              @update:model-value="config.modelPosePreset = $event"
+              :options="modelPosePresetOptions"
+            />
+            <div style="height: 14px" />
+            <input
+              class="control"
+              type="text"
+              v-model="config.modelPoseDetails"
+              placeholder="Optional: add pose details (e.g., slight step, relaxed hands, 3/4 turn)"
+            />
+          </div>
+
+          <div style="height: 40px" />
+
+          <div>
+            <FieldLabel
               label="Model styling notes"
               info="Pick a preset for hair/makeup/jewelry, and optionally add your own notes. If you set both, they will be combined."
             />
@@ -264,6 +286,7 @@ import {
   backgroundThemeOptions,
   footwearPresetOptions,
   modelEthnicityOptions,
+  modelPosePresetOptions,
   modelStylingPresetOptions,
   occasionPresetOptions,
   stylePresetOptions,
@@ -288,4 +311,3 @@ defineProps<{
 
 defineEmits<{ (e: "submit"): void }>();
 </script>
-
