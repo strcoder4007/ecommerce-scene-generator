@@ -22,31 +22,8 @@
       </div>
     </div>
 
-    <div class="tabRow">
-      <div class="tabGroup" role="tablist" aria-label="Sections">
-        <button
-          type="button"
-          @click="activeTab = 'generate'"
-          :class="`tabButton ${activeTab === 'generate' ? 'tabButtonActive' : ''}`"
-          role="tab"
-          :aria-selected="activeTab === 'generate'"
-        >
-          Generate
-        </button>
-        <button
-          type="button"
-          @click="activeTab = 'assets'"
-          :class="`tabButton ${activeTab === 'assets' ? 'tabButtonActive' : ''}`"
-          role="tab"
-          :aria-selected="activeTab === 'assets'"
-        >
-          Assets
-        </button>
-      </div>
-    </div>
-
-	    <div v-if="activeTab === 'generate'">
-	      <div v-if="generateView === 'library'" class="storyboardLibrary">
+    <div>
+      <div v-if="generateView === 'library'" class="storyboardLibrary">
 	        <div class="card storyboardLibraryHeader">
 	          <div>
 	            <div class="sectionTitle" style="margin: 0 0 6px">Storyboards</div>
@@ -89,9 +66,9 @@
 	            <div class="storyboardCardSub">{{ storyboardSubtitle(sb) }}</div>
 	          </button>
 	        </div>
-	      </div>
+      </div>
 
-	      <div v-else class="card storyboardEditorCard">
+      <div v-if="generateView !== 'library'" class="card storyboardEditorCard">
 	        <div class="storyboardEditorCardHeader" aria-label="Storyboard manager">
 	          <div class="storyboardEditorHeaderTop">
 	            <button
@@ -134,7 +111,7 @@
 	          </div>
 	        </div>
 
-	        <div class="divider storyboardEditorDivider" aria-hidden="true" />
+		        <div class="divider storyboardEditorDivider" aria-hidden="true"></div>
 
 	        <div class="storyboardEditorCardBody">
 	          <div class="grid storyBoard">
@@ -378,7 +355,7 @@
 	                },
 	                {
 	                  value:
-	                    'concert venue — modern music venue; stage lights as soft bokeh; energetic atmosphere; keep product framing clean and readable',
+	                    'concert venue — modern music venue; stage lights as soft bokeh; energetic atmosphere; keep product framing clean and readable, model should be standing in the crowd.',
 	                  label: 'Concert',
 	                },
 	                {
@@ -399,40 +376,6 @@
           </div>
 
           <div style="height: 40px" />
-
-          <div>
-            <FieldLabel
-              label="Background image"
-              info="If you have added backgrounds in the Assets tab, click a thumbnail to force a specific scene. Leave on Auto to let the generator invent a matching background."
-            />
-            <div v-if="backgrounds.length" class="thumbStrip">
-              <button
-                type="button"
-                :class="`thumb ${!activeConfig.selectedBackgroundId ? 'thumbSelected' : ''}`"
-                @click="activeConfig.selectedBackgroundId = ''"
-                :aria-pressed="!activeConfig.selectedBackgroundId"
-                title="Auto background"
-              >
-                <div class="thumbPlaceholder">Auto</div>
-                <div class="thumbTitle">Auto</div>
-                <div class="thumbSubtitle">Invent / pick best</div>
-              </button>
-              <button
-                v-for="b in backgrounds"
-                :key="b.id"
-                type="button"
-                :class="`thumb ${activeConfig.selectedBackgroundId === b.id ? 'thumbSelected' : ''}`"
-                @click="activeConfig.selectedBackgroundId = b.id"
-                :aria-pressed="activeConfig.selectedBackgroundId === b.id"
-                :title="b.title"
-              >
-                <img :src="b.image_url" :alt="b.title" loading="lazy" />
-                <div class="thumbTitle">{{ b.title }}</div>
-                <div class="thumbSubtitle">{{ b.theme || "Background" }}</div>
-              </button>
-            </div>
-            <div v-else class="muted">No backgrounds detected — the generator will invent one.</div>
-          </div>
 
 	                  </div>
 
@@ -471,40 +414,6 @@
 
           <div style="height: 40px" />
 
-          <div>
-            <FieldLabel
-              label="Model image"
-              info="If you have added model references in the Assets tab, click a thumbnail to use that exact identity/face/pose. Leave Auto to generate a suitable model."
-            />
-            <div v-if="models.length" class="thumbStrip">
-              <button
-                type="button"
-                :class="`thumb ${!activeConfig.selectedModelId ? 'thumbSelected' : ''}`"
-                @click="activeConfig.selectedModelId = ''"
-                :aria-pressed="!activeConfig.selectedModelId"
-                title="Auto model"
-              >
-                <div class="thumbPlaceholder">Auto</div>
-                <div class="thumbTitle">Auto</div>
-                <div class="thumbSubtitle">Invent / pick best</div>
-              </button>
-              <button
-                v-for="m in models"
-                :key="m.id"
-                type="button"
-                :class="`thumb ${activeConfig.selectedModelId === m.id ? 'thumbSelected' : ''}`"
-                @click="activeConfig.selectedModelId = m.id"
-                :aria-pressed="activeConfig.selectedModelId === m.id"
-                :title="m.title"
-              >
-                <img :src="m.image_url" :alt="m.title" loading="lazy" />
-                <div class="thumbTitle">{{ m.title }}</div>
-                <div class="thumbSubtitle">{{ m.ethnicity || "Model" }}</div>
-              </button>
-            </div>
-            <div v-else class="muted">No models detected — the generator will invent one.</div>
-          </div>
-
           <div style="height: 40px" />
 
 	          <div>
@@ -538,9 +447,6 @@
 	            <button type="submit" class="btnPrimary" :disabled="isGenerating">
 	              {{ isGenerating ? "Generating..." : "Generate look" }}
 	            </button>
-	            <button type="button" class="btnSecondary" @click="refreshAssets" :disabled="isGenerating">
-	              Refresh assets
-	            </button>
 	            <button
 	              type="button"
 	              class="btnGhost"
@@ -553,19 +459,7 @@
 	            </button>
 	          </div>
 
-
-
-          <div v-if="assetsError" class="error">{{ assetsError }}</div>
           <div v-if="activeRuntime.generateError" class="error">{{ activeRuntime.generateError }}</div>
-
-	          <div v-if="activeRuntime.garmentDataUrls.length" style="margin-top: 16px">
-	            <label>Selection preview</label>
-	            <div class="muted">
-	              {{ activeConfig.selectedBackgroundId ? "Using selected background." : "Auto background." }}
-	              {{ " " }}
-	              {{ activeConfig.selectedModelId ? "Using selected model." : "Auto model." }}
-	            </div>
-	          </div>
 
           <div v-if="activeRuntime.chosenSummary" style="margin-top: 12px">
             <label>Chosen plan</label>
@@ -861,118 +755,11 @@
 	            </div>
 	          </div>
 	        </div>
-	      </div>
-	    </div>
-	    </div>
-	    </div>
-	    </div>
-	
-	    <div v-else class="grid">
-	      <div class="card">
-	        <h2 class="title" style="font-size: 16px; margin-top: 0">Upload background</h2>
-        <form @submit.prevent="uploadBackground">
-          <div>
-            <FieldLabel
-              label="Image"
-              info="Upload a background reference image (e.g., studio wall, beach, garden). Stored locally in your browser and selectable from the Generate tab."
-            />
-            <input ref="bgFileInputRef" type="file" accept="image/*" @change="onBgFileChange" />
-          </div>
-          <div style="height: 18px" />
-          <div class="row">
-            <div>
-              <FieldLabel label="Title" info="A short name to recognize this background." />
-              <input class="control" v-model="bgTitle" type="text" />
-            </div>
-            <div>
-              <FieldLabel
-                label="Theme (recommended)"
-                info="A theme tag (e.g., beach, party, studio). The generator can use this when auto-planning a look."
-              />
-              <input class="control" v-model="bgTheme" type="text" placeholder="beach, party, forest..." />
-            </div>
-          </div>
-          <div style="height: 18px" />
-          <div>
-            <FieldLabel label="Tags" info="Extra tags to help categorize assets. Use commas." />
-            <input class="control" v-model="bgTags" type="text" placeholder="comma separated" />
-          </div>
-          <div class="actions">
-            <button type="submit" class="btnPrimary" :disabled="bgUploading">
-              {{ bgUploading ? "Uploading..." : "Upload background" }}
-            </button>
-          </div>
-          <div v-if="bgUploadError" class="error">{{ bgUploadError }}</div>
-        </form>
       </div>
-
-      <div class="card">
-        <h2 class="title" style="font-size: 16px; margin-top: 0">Upload model</h2>
-        <form @submit.prevent="uploadModel">
-          <div>
-            <FieldLabel
-              label="Image"
-              info="Upload a model reference image to keep the same identity/face/pose across generations. Stored locally in your browser."
-            />
-            <input ref="modelFileInputRef" type="file" accept="image/*" @change="onModelFileChange" />
-          </div>
-          <div style="height: 18px" />
-          <div class="row">
-            <div>
-              <FieldLabel label="Title" info="A short name to recognize this model." />
-              <input class="control" v-model="modelTitle" type="text" />
-            </div>
-            <div>
-              <FieldLabel
-                label="Ethnicity (recommended)"
-                info="Helps the generator auto-pick diversity when no explicit model is selected."
-              />
-              <input class="control" v-model="modelAssetEthnicity" type="text" placeholder="Indian, Russian..." />
-            </div>
-          </div>
-          <div style="height: 18px" />
-          <div>
-            <FieldLabel label="Tags" info="Extra tags to help categorize assets. Use commas." />
-            <input class="control" v-model="modelTags" type="text" placeholder="comma separated" />
-          </div>
-          <div class="actions">
-            <button type="submit" class="btnPrimary" :disabled="modelUploading">
-              {{ modelUploading ? "Uploading..." : "Upload model" }}
-            </button>
-          </div>
-          <div v-if="modelUploadError" class="error">{{ modelUploadError }}</div>
-        </form>
-      </div>
-
-      <div class="card" style="grid-column: 1 / -1">
-        <div class="actions" style="justify-content: space-between">
-          <div>
-            <h2 class="title" style="font-size: 16px; margin: 0">Current assets</h2>
-            <div class="muted">Backgrounds: {{ backgrounds.length }} · Models: {{ models.length }}</div>
-          </div>
-          <button type="button" class="btnSecondary" @click="refreshAssets">Refresh</button>
-        </div>
-
-        <div v-if="assetsError" class="error">{{ assetsError }}</div>
-
-        <div style="height: 18px" />
-
-        <div class="grid">
-          <div>
-            <label>Backgrounds</label>
-            <div class="preview">
-              <img v-for="b in backgrounds" :key="b.id" :src="b.image_url" :alt="b.title" :title="b.title" />
-            </div>
-          </div>
-          <div>
-            <label>Models</label>
-            <div class="preview">
-              <img v-for="m in models" :key="m.id" :src="m.image_url" :alt="m.title" :title="m.title" />
-            </div>
-          </div>
-        </div>
-	      </div>
+	          </div>
+	        </div>
 	    </div>
+    </div>
 
 	    <div
 	      v-if="imageModal"
@@ -1009,7 +796,7 @@
 	      <div class="modalCard">
 	        <div class="modalTitle">Delete storyboard?</div>
 	        <div class="muted" style="margin-top: 6px">
-	          This removes <strong>{{ activeStoryboard.title }}</strong> from this browser. Background/model assets remain.
+	          This removes <strong>{{ activeStoryboard.title }}</strong> from this browser.
 	        </div>
 	        <div class="actions" style="justify-content: flex-end; margin-top: 16px">
 	          <button type="button" class="btnSecondary" @click="closeDeleteStoryboardModal">Cancel</button>
@@ -1028,15 +815,7 @@ import PillRadioGroup from "./components/PillRadioGroup.vue";
 import Spinner from "./components/Spinner.vue";
 
 import { base64ToBytes, dataUrlToInlineImage, generateImage } from "./lib/gemini";
-import {
-  fileToDataUrl,
-  listAssets,
-  nowIso,
-  parseTags as parseLocalTags,
-  randomId,
-  upsertAsset,
-  type LocalAsset,
-} from "./lib/localAssets";
+import { fileToDataUrl, nowIso, parseTags as parseLocalTags, randomId } from "./lib/utils";
 import {
   createStoryboardRecord,
   loadActiveStoryboardIdFromLocalStorage,
@@ -1050,12 +829,9 @@ import {
 	  buildCompositePrompt,
 	  buildGarmentReferencePrompt,
 	  buildMultiAnglePrompt,
-	  chooseBackground,
-	  chooseModel,
 	  computeTimingsMs,
 	  generateFinalPrompt,
 	  planLookFromGarment,
-  type AssetMeta,
   type LookPlan,
 } from "./lib/pipeline";
 
@@ -1091,8 +867,7 @@ function combinePresetAndCustom(opts: { presetText: string; customText: string; 
   return `${p}${opts.joiner ?? ", "}${c}`;
 }
 
-	const activeTab = ref<"generate" | "assets">("generate");
-	const generateView = ref<"library" | "editor">("library");
+const generateView = ref<"library" | "editor">("library");
 
 const geminiApiKey = ref(localStorage.getItem("gemini_api_key") || "");
 const showApiKey = ref(false);
@@ -1122,8 +897,6 @@ watch(
 		  garmentRefMimeType: string | null;
 		  lastPlan: LookPlan | null;
 		  lastFinalPrompt: string | null;
-		  usedModelId: string | null;
-		  usedBackgroundId: string | null;
 		  angles: StoryboardAnglesRuntime;
 		  generateError: string | null;
 		  chosenSummary: any;
@@ -1153,8 +926,6 @@ watch(
 		    garmentRefMimeType: null,
 		    lastPlan: null,
 		    lastFinalPrompt: null,
-		    usedModelId: null,
-		    usedBackgroundId: null,
 		    angles: createDefaultAnglesRuntime(),
 		    generateError: null,
 		    chosenSummary: null,
@@ -1276,7 +1047,6 @@ function formatStoryboardTimestamp(iso: string): string {
 	          joiner: ", ",
 	        });
 	  if (bgTheme) parts.push(`BG: ${bgTheme}`);
-	  if (cfg.selectedBackgroundId) parts.push("BG pinned");
 
 		  const accessories = cfg.accessories.trim();
 		  if (accessories) parts.push(`Accessories: ${accessories}`);
@@ -1300,7 +1070,6 @@ function formatStoryboardTimestamp(iso: string): string {
 	      ? cfg.modelDetails.trim()
 	      : combinePresetAndCustom({ presetText: cfg.modelPreset, customText: cfg.modelDetails, joiner: ", " });
 	  if (ethnicity) parts.push(`Model: ${ethnicity}`);
-	  if (cfg.selectedModelId) parts.push("Model pinned");
 
 		  const stylingPresetText =
 		    cfg.modelStylingPreset && cfg.modelStylingPreset !== "custom"
@@ -1367,8 +1136,6 @@ function uniqueTitle(base: string): string {
 		    garmentRefMimeType: activeRuntime.value.garmentRefMimeType,
 		    lastPlan: activeRuntime.value.lastPlan ? safeClone(activeRuntime.value.lastPlan) : null,
 		    lastFinalPrompt: activeRuntime.value.lastFinalPrompt,
-		    usedModelId: activeRuntime.value.usedModelId,
-		    usedBackgroundId: activeRuntime.value.usedBackgroundId,
 		    angles: {
 		      ...createDefaultAnglesRuntime(),
 		      sideDataUrl: activeRuntime.value.angles.sideDataUrl,
@@ -1513,8 +1280,6 @@ function clearResult() {
   runtime.garmentRefMimeType = null;
   runtime.lastPlan = null;
   runtime.lastFinalPrompt = null;
-  runtime.usedModelId = null;
-  runtime.usedBackgroundId = null;
   runtime.angles = createDefaultAnglesRuntime();
   runtime.chosenSummary = null;
   runtime.debugSummary = null;
@@ -1581,31 +1346,13 @@ async function generateMultipleAngles() {
     const mainInline = dataUrlToInlineImage(runtime.resultDataUrl);
 
     const referenceImages = [garmentRefInline, ...garmentAnglesInline, mainInline];
-    let hasModelReference = false;
-    let hasBackgroundReference = false;
-
-    if (runtime.usedModelId) {
-      const modelRef = models.value.find((m) => m.id === runtime.usedModelId) || null;
-      if (modelRef) {
-        referenceImages.push(dataUrlToInlineImage(modelRef.image_url));
-        hasModelReference = true;
-      }
-    }
-
-    if (runtime.usedBackgroundId) {
-      const bgRef = backgrounds.value.find((b) => b.id === runtime.usedBackgroundId) || null;
-      if (bgRef) {
-        referenceImages.push(dataUrlToInlineImage(bgRef.image_url));
-        hasBackgroundReference = true;
-      }
-    }
 
     const promptBase = {
       plan: runtime.lastPlan,
       finalPrompt: runtime.lastFinalPrompt || "",
       garmentAngleCount: garmentAnglesInline.length,
-      hasModelReference,
-      hasBackgroundReference,
+      hasModelReference: false,
+      hasBackgroundReference: false,
     } as const;
 
     const sidePrompt = buildMultiAnglePrompt({ ...promptBase, angle: "side" });
@@ -1620,7 +1367,9 @@ async function generateMultipleAngles() {
 	          model: "gemini-3-pro-image-preview",
 	          promptText: sidePrompt,
 	          images: referenceImages,
-	          aspectRatio: "9:16",
+	          aspectRatio: "3:4",
+	          width: 1080,
+	          height: 1440,
 	          timeoutMs: 180_000,
 	        });
         return { res, ms: Math.round(performance.now() - t) };
@@ -1632,7 +1381,9 @@ async function generateMultipleAngles() {
 	          model: "gemini-3-pro-image-preview",
 	          promptText: backPrompt,
 	          images: referenceImages,
-	          aspectRatio: "9:16",
+	          aspectRatio: "3:4",
+	          width: 1080,
+	          height: 1440,
 	          timeoutMs: 180_000,
 	        });
         return { res, ms: Math.round(performance.now() - t) };
@@ -1678,56 +1429,9 @@ function onResultImagePointerLeave(event: PointerEvent) {
 
 const computedTimings = computed(() => computeTimingsMs(activeRuntime.value.resultTimingsMs || {}));
 
-// Local assets (IndexedDB)
-const backgrounds = ref<LocalAsset[]>([]);
-const models = ref<LocalAsset[]>([]);
-const assetsError = ref<string | null>(null);
-
-async function refreshAssets() {
-  assetsError.value = null;
-  try {
-    const [bg, md] = await Promise.all([listAssets("background"), listAssets("model")]);
-    backgrounds.value = bg;
-    models.value = md;
-  } catch (err: any) {
-    assetsError.value = err?.message || String(err);
-  }
-}
-
 onMounted(() => {
-  void refreshAssets();
   window.addEventListener("keydown", onGlobalKeyDown);
 });
-
-function assetMetaFromLocal(a: LocalAsset): AssetMeta {
-  return {
-    id: a.id,
-    title: a.title,
-    theme: a.theme ?? null,
-    ethnicity: a.ethnicity ?? null,
-    tags: a.tags || [],
-  };
-}
-
-function getSelectedBackground(desiredTheme: string): LocalAsset | null {
-  const selected = activeConfig.value.selectedBackgroundId;
-  if (selected) {
-    return backgrounds.value.find((b) => b.id === selected) || null;
-  }
-  if (!backgrounds.value.length) return null;
-  const chosen = chooseBackground(backgrounds.value.map(assetMetaFromLocal), desiredTheme);
-  return chosen ? backgrounds.value.find((b) => b.id === chosen.id) || null : null;
-}
-
-function getSelectedModel(planEthnicity: string): LocalAsset | null {
-  const selected = activeConfig.value.selectedModelId;
-  if (selected) {
-    return models.value.find((m) => m.id === selected) || null;
-  }
-  if (!models.value.length) return null;
-  const chosen = chooseModel(models.value.map(assetMetaFromLocal), planEthnicity);
-  return chosen ? models.value.find((m) => m.id === chosen.id) || null : null;
-}
 
 // Derived inputs
 const occasionPresetOptions: Array<{ value: string; label: string }> = [
@@ -1986,8 +1690,6 @@ async function onGenerateLook() {
   runtime.garmentRefMimeType = null;
   runtime.lastPlan = null;
   runtime.lastFinalPrompt = null;
-  runtime.usedModelId = null;
-  runtime.usedBackgroundId = null;
   runtime.angles = createDefaultAnglesRuntime();
   runtime.chosenSummary = null;
   runtime.debugSummary = null;
@@ -2003,18 +1705,6 @@ async function onGenerateLook() {
 		      runtime.generateError = "Please select garment photos.";
 		      return;
 		    }
-
-	  if (activeConfig.value.selectedBackgroundId || activeConfig.value.selectedModelId) {
-	    await refreshAssets();
-	  }
-	  if (activeConfig.value.selectedBackgroundId && !backgrounds.value.some((b) => b.id === activeConfig.value.selectedBackgroundId)) {
-	    runtime.generateError = "Selected background not found. Click “Refresh assets” and reselect it.";
-	    return;
-	  }
-	  if (activeConfig.value.selectedModelId && !models.value.some((m) => m.id === activeConfig.value.selectedModelId)) {
-	    runtime.generateError = "Selected model not found. Click “Refresh assets” and reselect it.";
-	    return;
-	  }
 
 	  isGenerating.value = true;
 	  generationStepIndex.value = 0;
@@ -2034,12 +1724,8 @@ async function onGenerateLook() {
 	    }
 	    const garmentInlines = garmentDataUrls.map((src) => dataUrlToInlineImage(src));
 
-    const availableThemes = Array.from(
-      new Set(backgrounds.value.map((b) => (b.theme || "").trim()).filter(Boolean)),
-    ).sort();
-    const availableEthnicities = Array.from(
-      new Set(models.value.map((m) => (m.ethnicity || "").trim()).filter(Boolean)),
-    ).sort();
+    const availableThemes: string[] = [];
+    const availableEthnicities: string[] = [];
 
     generationStepIndex.value = 1;
 
@@ -2092,21 +1778,17 @@ async function onGenerateLook() {
 	      footwear: footwearFinal.value || null,
 	    });
 
-	    const chosenBg = getSelectedBackground(plan.background_theme);
-	    const chosenModel = getSelectedModel(plan.model_ethnicity);
 	    runtime.lastPlan = safeClone(plan);
-	    runtime.usedBackgroundId = chosenBg?.id ?? null;
-	    runtime.usedModelId = chosenModel?.id ?? null;
 
     const tFinalPrompt0 = performance.now();
     const finalPromptRes = await generateFinalPrompt({
       apiKey: geminiApiKey.value,
       model: "gemini-3-flash-preview",
       plan,
-      background: chosenBg ? assetMetaFromLocal(chosenBg) : null,
-      chosenModel: chosenModel ? assetMetaFromLocal(chosenModel) : null,
-      hasBackgroundReference: Boolean(chosenBg),
-      hasModelReference: Boolean(chosenModel),
+      background: null,
+      chosenModel: null,
+      hasBackgroundReference: false,
+      hasModelReference: false,
       timeoutMs: 120_000,
     });
 	    timings.final_prompt = Math.round(performance.now() - tFinalPrompt0);
@@ -2122,7 +1804,9 @@ async function onGenerateLook() {
 		      model: "gemini-3-pro-image-preview",
 		      promptText: garmentRefPrompt,
 		      images: garmentInlines,
-		      aspectRatio: "9:16",
+		      aspectRatio: "3:4",
+		      width: 1080,
+		      height: 1440,
 		      timeoutMs: 180_000,
 		    });
 	    timings.garment_reference = Math.round(performance.now() - tGarment0);
@@ -2134,22 +1818,12 @@ async function onGenerateLook() {
     const compositeImages: Array<{ mimeType: string; data: Uint8Array }> = [
       { mimeType: garmentRef.mimeType, data: garmentRefBytes },
     ];
-    let hasModelRef = false;
-    let hasBgRef = false;
-    if (chosenModel) {
-      compositeImages.push(dataUrlToInlineImage(chosenModel.image_url));
-      hasModelRef = true;
-    }
-    if (chosenBg) {
-      compositeImages.push(dataUrlToInlineImage(chosenBg.image_url));
-      hasBgRef = true;
-    }
 
     const compositePrompt = buildCompositePrompt({
       plan,
       finalPrompt: finalPromptRes.prompt,
-      hasModelReference: hasModelRef,
-      hasBackgroundReference: hasBgRef,
+      hasModelReference: false,
+      hasBackgroundReference: false,
     });
     debug.composite_prompt = compositePrompt;
     debug.negative_prompt = plan.negative_prompt;
@@ -2161,7 +1835,9 @@ async function onGenerateLook() {
 	      model: "gemini-3-pro-image-preview",
 	      promptText: compositePrompt,
 	      images: compositeImages,
-	      aspectRatio: "9:16",
+	      aspectRatio: "3:4",
+	      width: 1080,
+	      height: 1440,
 	      timeoutMs: 180_000,
 	    });
     timings.composite = Math.round(performance.now() - tComposite0);
@@ -2183,17 +1859,7 @@ async function onGenerateLook() {
 	      accessories: plan.accessories,
 	      background_theme: plan.background_theme,
 	      model_ethnicity: plan.model_ethnicity,
-	      background: {
-        id: chosenBg?.id ?? null,
-        title: chosenBg?.title ?? null,
-        theme: chosenBg?.theme ?? null,
-      },
-      model: {
-        id: chosenModel?.id ?? null,
-        title: chosenModel?.title ?? null,
-        ethnicity: chosenModel?.ethnicity ?? null,
-      },
-    };
+	    };
 
 	    runtime.debugSummary = {
 	      timings_ms: runtime.resultTimingsMs,
@@ -2206,100 +1872,6 @@ async function onGenerateLook() {
     isGenerating.value = false;
     stopGenerationTimer();
     generationStepIndex.value = 0;
-  }
-}
-
-// Assets tab state
-const bgFileInputRef = ref<HTMLInputElement | null>(null);
-const modelFileInputRef = ref<HTMLInputElement | null>(null);
-
-const bgFile = ref<File | null>(null);
-const bgTitle = ref("");
-const bgTheme = ref("");
-const bgTags = ref("");
-const bgUploadError = ref<string | null>(null);
-const bgUploading = ref(false);
-
-const modelFile = ref<File | null>(null);
-const modelTitle = ref("");
-const modelAssetEthnicity = ref("");
-const modelTags = ref("");
-const modelUploadError = ref<string | null>(null);
-const modelUploading = ref(false);
-
-function onBgFileChange(e: Event) {
-  const input = e.target as HTMLInputElement | null;
-  bgFile.value = input?.files?.[0] ?? null;
-}
-
-function onModelFileChange(e: Event) {
-  const input = e.target as HTMLInputElement | null;
-  modelFile.value = input?.files?.[0] ?? null;
-}
-
-async function uploadBackground() {
-  bgUploadError.value = null;
-  if (!bgFile.value) {
-    bgUploadError.value = "Select an image.";
-    return;
-  }
-  bgUploading.value = true;
-  try {
-    const dataUrl = await fileToDataUrl(bgFile.value);
-    const asset: LocalAsset = {
-      id: randomId(),
-      title: (bgTitle.value.trim() || bgTheme.value.trim() || "Background").trim(),
-      theme: bgTheme.value.trim() || null,
-      ethnicity: null,
-      tags: parseLocalTags(bgTags.value),
-      image_url: dataUrl,
-      mime_type: (bgFile.value.type || "image/*").split(";")[0].trim(),
-      created_at: nowIso(),
-    };
-    await upsertAsset("background", asset);
-    bgFile.value = null;
-    if (bgFileInputRef.value) bgFileInputRef.value.value = "";
-    bgTitle.value = "";
-    bgTheme.value = "";
-    bgTags.value = "";
-    await refreshAssets();
-  } catch (err: any) {
-    bgUploadError.value = err?.message || String(err);
-  } finally {
-    bgUploading.value = false;
-  }
-}
-
-async function uploadModel() {
-  modelUploadError.value = null;
-  if (!modelFile.value) {
-    modelUploadError.value = "Select an image.";
-    return;
-  }
-  modelUploading.value = true;
-  try {
-    const dataUrl = await fileToDataUrl(modelFile.value);
-    const asset: LocalAsset = {
-      id: randomId(),
-      title: (modelTitle.value.trim() || modelAssetEthnicity.value.trim() || "Model").trim(),
-      theme: null,
-      ethnicity: modelAssetEthnicity.value.trim() || null,
-      tags: parseLocalTags(modelTags.value),
-      image_url: dataUrl,
-      mime_type: (modelFile.value.type || "image/*").split(";")[0].trim(),
-      created_at: nowIso(),
-    };
-    await upsertAsset("model", asset);
-    modelFile.value = null;
-    if (modelFileInputRef.value) modelFileInputRef.value.value = "";
-    modelTitle.value = "";
-    modelAssetEthnicity.value = "";
-    modelTags.value = "";
-    await refreshAssets();
-  } catch (err: any) {
-    modelUploadError.value = err?.message || String(err);
-  } finally {
-    modelUploading.value = false;
   }
 }
 </script>

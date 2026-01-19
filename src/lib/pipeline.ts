@@ -34,7 +34,7 @@ export type LookOverrides = {
 const MODEL_AGE_RULE =
   "Model age: young adult (18–23), not older than 23. The model must look clearly adult (do not depict a minor).";
 const FULL_BODY_RULE =
-  "HARD FRAMING: full-body head-to-toe. Include the entire head and both feet/shoes in frame (no cropping at any edge). Leave a small margin above head and below feet. Aspect ratio: 9:16 portrait.";
+  "HARD FRAMING: full-body head-to-toe. Include the entire head and both feet/shoes in frame (no cropping at any edge). Leave a small margin above head and below feet. Aspect ratio: 3:4 portrait. Output resolution: 1080×1440 px (3:4).";
 const GARMENT_FIDELITY_RULE =
   "Garment fidelity: match the garment reference exactly (silhouette, neckline, sleeves, hem, print/pattern, logos/graphics, seams, fabric texture). Do not add extra fabric, extra layers, or new design elements.";
 const BACKGROUND_LOCK_RULE =
@@ -285,7 +285,7 @@ Constraints:
 Style guide baseline to incorporate (must match this look):
 - Product-first catalogue photography with aspirational lifestyle feel (not pure studio).
 - Warm, sunny, polished, approachable, slightly editorial; “vacation wardrobe lookbook” vibe. Not gritty street-style; not dramatic high-fashion.
-- Camera: vertical 9:16 full-body shot, 35–50mm look, eye-level, f/3.2–f/4 shallow separation, crisp focus.
+- Camera: vertical 3:4 full-body shot, 35–50mm look, eye-level, f/3.2–f/4 shallow separation, crisp focus.
 - Lighting: natural daylight look with soft front-side light (10–45°) and gentle fill; medium contrast; warm midtones; realistic shadows.
 - Pose: natural weight shift (S-curve), legs uncrossed, slight torso twist/shoulder tilt to show silhouette + neckline, relaxed hands (light touch on fabric/hip/railing; no clenched fists), slight head tilt, soft smile; optional subtle step/sway to show drape.
 - Garment presentation: wrinkle-free/steamed look; fit and drape clearly visible; keep neckline/waistline/hemline readable.
@@ -323,7 +323,7 @@ Return ONLY the prompt text (no quotes, no JSON).
       ? "set in the BACKGROUND PHOTO"
       : `set in a photorealistic ${opts.plan.background_theme || opts.plan.occasion} background`;
     const model_clause = `one female model${opts.hasModelReference ? "" : opts.plan.model_ethnicity ? ` (prefer ${opts.plan.model_ethnicity})` : ""}`;
-	    const fallback = `Photorealistic ecommerce fashion photo (warm sunny vacation lookbook vibe), young adult female model (18–23; not older than 23; must look adult), full-body head-to-toe vertical 9:16 (include entire head and both feet/shoes; small margin; no cropping), ${model_clause} wearing EXACTLY the garment from the GARMENT REFERENCE (no extra fabric/layers; no design changes), model/garment medium-large in frame (avoid wide shot/tiny product; model fills ~80–85% height), ${opts.plan.occasion} style, ${opts.plan.color_scheme} palette, garment print as in reference (${opts.plan.print_style}), footwear: ${opts.plan.footwear || "auto"}, accessories: ${opts.plan.accessories.length ? opts.plan.accessories.join(", ") : "none"}, ${background_clause}, natural daylight with soft fill, 35–50mm look, crisp focus, medium contrast, visible fabric texture, avoid: ${avoid}, ${GLOBAL_AVOID}.`;
+	    const fallback = `Photorealistic ecommerce fashion photo (warm sunny vacation lookbook vibe), young adult female model (18–23; not older than 23; must look adult), full-body head-to-toe vertical 3:4 (include entire head and both feet/shoes; small margin; no cropping), ${model_clause} wearing EXACTLY the garment from the GARMENT REFERENCE (no extra fabric/layers; no design changes), model/garment medium-large in frame (avoid wide shot/tiny product; model fills ~80–85% height), ${opts.plan.occasion} style, ${opts.plan.color_scheme} palette, garment print as in reference (${opts.plan.print_style}), footwear: ${opts.plan.footwear || "auto"}, accessories: ${opts.plan.accessories.length ? opts.plan.accessories.join(", ") : "none"}, ${background_clause}, natural daylight with soft fill, 35–50mm look, crisp focus, medium contrast, visible fabric texture, avoid: ${avoid}, ${GLOBAL_AVOID}.`;
     return { prompt: fallback, rawText: String(err?.message || err) };
   }
 }
@@ -356,7 +356,7 @@ export function buildCompositePrompt(opts: {
     "You are generating a photorealistic ecommerce fashion product photo for an online store.",
     "The product is the hero: keep the garment accurate and undistorted.",
     "Style baseline: warm, sunny, polished, approachable, slightly editorial. Aspirational lifestyle (vacation wardrobe lookbook). Not gritty street-style; not dramatic high-fashion.",
-    "Camera & lighting: vertical 9:16 full-body, 35–50mm look, eye-level, f/3.2–f/4 separation, natural daylight with soft front-side light and gentle fill; medium contrast; warm midtones; crisp focus with visible fabric texture.",
+    "Camera & lighting: vertical 3:4 full-body, 35–50mm look, eye-level, f/3.2–f/4 separation, natural daylight with soft front-side light and gentle fill; medium contrast; warm midtones; crisp focus with visible fabric texture.",
     "Pose direction: natural weight shift (S-curve), legs uncrossed, slight torso twist/shoulder tilt, relaxed hands lightly touching fabric/hip/railing (no clenched fists), slight head tilt, soft smile; optional subtle step/sway to show drape.",
     "Garment presentation: wrinkle-free/steamed look, clear fit and drape, keep neckline/waistline/hemline readable; keep hair/props from covering the garment.",
     "Composition: rule-of-thirds friendly, clean commercial framing with a little breathing room (while keeping full body + product large).",
@@ -450,7 +450,7 @@ export function buildMultiAnglePrompt(opts: {
     "You are generating additional angles for an ecommerce fashion product photo.",
     "Goal: create an additional view of the SAME look as the MAIN RESULT image, while keeping the garment design accurate.",
     "Style baseline: warm, sunny, polished, approachable, slightly editorial. Aspirational lifestyle (vacation wardrobe lookbook). Not gritty street-style; not dramatic high-fashion.",
-    "Camera & lighting: vertical 9:16 full-body, 35–50mm look, eye-level, f/3.2–f/4 separation, natural daylight with soft front-side light and gentle fill; medium contrast; warm midtones; crisp focus with visible fabric texture.",
+    "Camera & lighting: vertical 3:4 full-body, 35–50mm look, eye-level, f/3.2–f/4 separation, natural daylight with soft front-side light and gentle fill; medium contrast; warm midtones; crisp focus with visible fabric texture.",
     FULL_BODY_RULE,
     "Product scale: keep the model/garment medium-large in frame (avoid wide shots). Aim for the model to fill ~80–85% of the image height while still fully visible head-to-toe.",
     "Keep the entire garment visible and unobstructed (no hair/props covering key details).",

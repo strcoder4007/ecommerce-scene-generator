@@ -153,6 +153,7 @@ export async function generateText(opts: {
 const PROMPT_QUALITY_MARKER = "Photo quality requirements:";
 const PROMPT_PHOTOSHOOT_QUALITY_BLOCK = [
   "Photo quality requirements:",
+  "- Output resolution: 1080×1440 pixels (3:4 portrait).",
   "- Photorealistic, high-resolution, ultra-sharp detail, crisp focus (no motion blur).",
   "- Professional high-end fashion/product photoshoot look (studio-grade lighting, clean color, high dynamic range).",
   "- Accurate textures (skin/fabric), natural shadows, realistic perspective and depth.",
@@ -178,6 +179,8 @@ export async function generateImage(opts: {
   timeoutMs?: number;
   temperature?: number;
   aspectRatio?: string;
+  width?: number;
+  height?: number;
 }): Promise<GeminiImageResult> {
   const apiKey = (opts.apiKey || "").trim();
   if (!apiKey) throw new GeminiError("Missing API key.");
@@ -201,7 +204,15 @@ export async function generateImage(opts: {
     generationConfig: {
       temperature: typeof opts.temperature === "number" ? opts.temperature : 0.2,
       responseModalities: ["TEXT", "IMAGE"],
-      ...(opts.aspectRatio ? { imageConfig: { aspectRatio: opts.aspectRatio } } : {}),
+      ...((opts.aspectRatio || opts.width || opts.height)
+        ? {
+            imageConfig: {
+              ...(opts.aspectRatio ? { aspectRatio: opts.aspectRatio } : {}),
+              ...(typeof opts.width === "number" ? { width: Math.round(opts.width) } : {}),
+              ...(typeof opts.height === "number" ? { height: Math.round(opts.height) } : {}),
+            },
+          }
+        : {}),
     },
   };
 
@@ -233,13 +244,16 @@ export async function generateImage(opts: {
     json = await post(payloadBase);
   } catch (err: any) {
     const msg = String(err?.message || err);
+    const requestedImageConfig = Boolean(opts.aspectRatio || opts.width || opts.height);
     const looksLikeUnknownField =
-      opts.aspectRatio &&
+      requestedImageConfig &&
       (msg.includes("Unknown name") ||
         msg.includes("unknown field") ||
         msg.includes("Invalid JSON payload") ||
         msg.includes("imageConfig") ||
-        msg.includes("aspectRatio"));
+        msg.includes("aspectRatio") ||
+        msg.includes("width") ||
+        msg.includes("height"));
     if (!looksLikeUnknownField) throw err;
 
     // Fallback: if the endpoint/model does not support aspect ratio config, retry without it.

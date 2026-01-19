@@ -13,14 +13,9 @@ Open `http://localhost:5173/ecommerce-scene-generator/` (adjust if you change `b
 
 ## Storyboards (idea management)
 
-- The **Generate** tab has a storyboard sidebar.
-- Each storyboard stores its settings (occasion, background/model selections, accessories, etc.) in `localStorage`.
-- Create / rename / duplicate / delete storyboards from the sidebar.
-
-## Assets (local-only)
-
-- The **Assets** tab stores background/model reference images locally in your browser (IndexedDB).
-- Nothing is uploaded to a server.
+- The app opens to a storyboard library view.
+- Each storyboard stores its settings (occasion, background theme, accessories, etc.) in `localStorage`.
+- Create / rename / duplicate / delete storyboards from the UI.
 
 ## Build & deploy (GitHub Pages)
 

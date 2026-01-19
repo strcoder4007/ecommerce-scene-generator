@@ -1,4 +1,4 @@
-import { nowIso, randomId } from "./localAssets";
+import { nowIso, randomId } from "./utils";
 
 export const STORYBOARDS_STORAGE_KEY = "esg_storyboards_v1";
 export const ACTIVE_STORYBOARD_ID_KEY = "esg_active_storyboard_id_v1";
@@ -75,10 +75,8 @@ export type StoryboardConfig = {
   styleKeywordsDetails: string;
   backgroundThemePreset: string;
   backgroundThemeDetails: string;
-  selectedBackgroundId: string;
   modelPreset: string;
   modelDetails: string;
-  selectedModelId: string;
   modelStylingPreset: string;
   modelStylingNotes: string;
   includeDebugStr: "no" | "yes";
@@ -104,10 +102,8 @@ export function createDefaultStoryboardConfig(): StoryboardConfig {
     styleKeywordsDetails: "",
     backgroundThemePreset: "",
     backgroundThemeDetails: "",
-    selectedBackgroundId: "",
     modelPreset: "White / European",
     modelDetails: "",
-    selectedModelId: "",
     modelStylingPreset: "",
     modelStylingNotes: "",
     includeDebugStr: "no",
@@ -141,9 +137,9 @@ function normalizeBackgroundThemePreset(value: string): string {
     "mediterranean terrace":
       "mediterranean terrace — white stucco; stone tiles; olive trees; coastal Europe resort vibe; bright sun; airy open space; clean composition",
     concert:
-      "concert venue — modern music venue; stage lights as soft bokeh; energetic atmosphere; keep product framing clean and readable",
+      "concert venue — modern music venue; stage lights as soft bokeh; energetic atmosphere; keep product framing clean and readable, model should be standing in the crowd.",
     "live music concert":
-      "concert venue — modern music venue; stage lights as soft bokeh; energetic atmosphere; keep product framing clean and readable",
+      "concert venue — modern music venue; stage lights as soft bokeh; energetic atmosphere; keep product framing clean and readable, model should be standing in the crowd.",
     nightclub:
       "nightclub lounge — upscale lounge; subtle neon accents; stylish nightlife vibe; moody but clean lighting; uncluttered background",
     "bar nightclub":
@@ -250,10 +246,8 @@ function normalizeConfig(value: unknown): StoryboardConfig {
       asString(raw.backgroundThemePreset) ?? base.backgroundThemePreset,
     ),
     backgroundThemeDetails: asString(raw.backgroundThemeDetails) ?? base.backgroundThemeDetails,
-    selectedBackgroundId: asString(raw.selectedBackgroundId) ?? base.selectedBackgroundId,
     modelPreset: asString(raw.modelPreset) ?? base.modelPreset,
     modelDetails: asString(raw.modelDetails) ?? base.modelDetails,
-    selectedModelId: asString(raw.selectedModelId) ?? base.selectedModelId,
     modelStylingPreset: normalizeModelStylingPreset(asString(raw.modelStylingPreset) ?? base.modelStylingPreset),
     modelStylingNotes: asString(raw.modelStylingNotes) ?? base.modelStylingNotes,
     includeDebugStr: includeDebugStr === "yes" ? "yes" : "no",
