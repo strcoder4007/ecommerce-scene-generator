@@ -10,66 +10,107 @@
       <ApiKeyInput v-model="geminiApiKey" />
     </div>
 
-    <div>
-      <StoryboardLibrary
-        v-if="generateView === 'library'"
-        :storyboards="storyboards"
-        :active-id="activeStoryboardId"
-        :runtime-by-id="storyboardRuntime"
-        :is-generating="isGenerating"
-        :subtitle-for="storyboardSubtitle"
-        :format-timestamp="formatStoryboardTimestamp"
-        @create="createNewStoryboard"
-        @open="openStoryboard"
-      />
+    <div class="tabRow">
+      <div class="tabGroup" role="tablist" aria-label="Main tabs">
+        <button
+          type="button"
+          :class="activeTab === 'prints' ? 'tabButton tabButtonActive' : 'tabButton'"
+          :aria-selected="activeTab === 'prints'"
+          @click="activeTab = 'prints'"
+        >
+          Prints
+        </button>
+        <button
+          type="button"
+          :class="activeTab === 'generate' ? 'tabButton tabButtonActive' : 'tabButton'"
+          :aria-selected="activeTab === 'generate'"
+          @click="activeTab = 'generate'"
+        >
+          Generate
+        </button>
+      </div>
+    </div>
 
-      <div v-else class="card storyboardEditorCard">
-        <StoryboardEditorHeader
-          :title="activeStoryboard.title"
-          :updated-at="activeStoryboard.updatedAt"
-          :disabled="isGenerating"
-          :can-delete="storyboards.length > 1"
+    <template v-if="activeTab === 'prints'">
+      <PrintsTab
+        :storyboard-title="activeStoryboard.title"
+        :config="activeConfig"
+        :runtime="activeRuntime"
+        :is-busy="isGenerating || activeRuntime.prints.generating"
+        :mime-to-extension="mimeToExtension"
+        :on-base-garment-file-change="onPrintBaseGarmentFileChange"
+        :on-print-design-file-change="onPrintDesignFileChange"
+        :remove-base-garment="removePrintBaseGarment"
+        :remove-print-design="removePrintDesign"
+        @generate="generatePrintedGarment"
+        @retry="retryPrintedGarment"
+        @go-generate="activeTab = 'generate'"
+        @open-image="(src, title) => openImageModal(src, title, title)"
+      />
+    </template>
+
+    <template v-else>
+      <div>
+        <StoryboardLibrary
+          v-if="generateView === 'library'"
+          :storyboards="storyboards"
+          :active-id="activeStoryboardId"
+          :runtime-by-id="storyboardRuntime"
+          :is-generating="isGenerating"
+          :subtitle-for="storyboardSubtitle"
           :format-timestamp="formatStoryboardTimestamp"
-          @back="enterStoryboardLibrary"
-          @duplicate="duplicateActiveStoryboard"
-          @request-delete="requestDeleteActiveStoryboard"
-          @update:title="(v) => (activeStoryboard.title = v)"
+          @create="createNewStoryboard"
+          @open="openStoryboard"
         />
 
-        <div class="divider storyboardEditorDivider" aria-hidden="true"></div>
+        <div v-else class="card storyboardEditorCard">
+          <StoryboardEditorHeader
+            :title="activeStoryboard.title"
+            :updated-at="activeStoryboard.updatedAt"
+            :disabled="isGenerating"
+            :can-delete="storyboards.length > 1"
+            :format-timestamp="formatStoryboardTimestamp"
+            @back="enterStoryboardLibrary"
+            @duplicate="duplicateActiveStoryboard"
+            @request-delete="requestDeleteActiveStoryboard"
+            @update:title="(v) => (activeStoryboard.title = v)"
+          />
 
-        <div class="storyboardEditorCardBody">
-          <div class="grid storyBoard">
-            <StoryboardFormCards
-              :config="activeConfig"
-              :runtime="activeRuntime"
-              :active-storyboard-id="activeStoryboardId"
-              :is-generating="isGenerating"
-              :on-garment-file-change="onGarmentFileChange"
-              :remove-garment-image="removeGarmentImage"
-              @submit="onGenerateLook"
-            />
+          <div class="divider storyboardEditorDivider" aria-hidden="true"></div>
 
-            <StoryboardResultsPane
-              :is-generating="isGenerating"
-              :generation-step-index="generationStepIndex"
-              :generation-elapsed-ms="generationElapsedMs"
-              :generation-steps="GENERATION_STEPS"
-              :runtime="activeRuntime"
-              :computed-timings="computedTimings"
-              :format-duration-ms="formatDurationMs"
-	              :mime-to-extension="mimeToExtension"
-	              :on-result-image-pointer-move="onResultImagePointerMove"
-	              :on-result-image-pointer-leave="onResultImagePointerLeave"
-	              @open-image="openImageModal"
-	              @retry="retryMainImage"
-	              @generate-angles="generateMultipleAngles"
-	              @download-all="downloadAllImages"
-	            />
+          <div class="storyboardEditorCardBody">
+            <div class="grid storyBoard">
+              <StoryboardFormCards
+                :config="activeConfig"
+                :runtime="activeRuntime"
+                :active-storyboard-id="activeStoryboardId"
+                :is-generating="isGenerating"
+                :on-garment-file-change="onGarmentFileChange"
+                :remove-garment-image="removeGarmentImage"
+                @submit="onGenerateLook"
+              />
+
+              <StoryboardResultsPane
+                :is-generating="isGenerating"
+                :generation-step-index="generationStepIndex"
+                :generation-elapsed-ms="generationElapsedMs"
+                :generation-steps="GENERATION_STEPS"
+                :runtime="activeRuntime"
+                :computed-timings="computedTimings"
+                :format-duration-ms="formatDurationMs"
+                :mime-to-extension="mimeToExtension"
+                :on-result-image-pointer-move="onResultImagePointerMove"
+                :on-result-image-pointer-leave="onResultImagePointerLeave"
+                @open-image="openImageModal"
+                @retry="retryMainImage"
+                @generate-angles="generateMultipleAngles"
+                @download-all="downloadAllImages"
+              />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </template>
 
     <ImageModal
       :open="Boolean(imageModal)"
@@ -97,6 +138,7 @@ import StoryboardLibrary from "./components/StoryboardLibrary.vue";
 import StoryboardEditorHeader from "./components/StoryboardEditorHeader.vue";
 import StoryboardFormCards from "./components/StoryboardFormCards.vue";
 import StoryboardResultsPane from "./components/StoryboardResultsPane.vue";
+import PrintsTab from "./components/PrintsTab.vue";
 
 import { base64ToBytes, dataUrlToInlineImage, generateImage } from "./lib/gemini";
 import {
@@ -119,6 +161,7 @@ import {
 import {
   applyFreeformOverrides,
   buildCompositePrompt,
+  buildPrintApplicationPrompt,
   buildGarmentReferencePrompt,
   buildRetryCompositePrompt,
   buildMultiAnglePrompt,
@@ -162,6 +205,18 @@ function combinePresetAndCustom(opts: { presetText: string; customText: string; 
 
 const generateView = ref<"library" | "editor">("library");
 
+const ACTIVE_TAB_KEY = "esg_active_tab_v1";
+const activeTab = ref<"prints" | "generate">(
+  (localStorage.getItem(ACTIVE_TAB_KEY) as "prints" | "generate" | null) || "prints",
+);
+watch(
+  activeTab,
+  (value) => {
+    localStorage.setItem(ACTIVE_TAB_KEY, value);
+  },
+  { flush: "post" },
+);
+
 const geminiApiKey = ref(localStorage.getItem("gemini_api_key") || "");
 watch(
   geminiApiKey,
@@ -172,57 +227,85 @@ watch(
   { flush: "post" },
 );
 
-		type StoryboardAnglesRuntime = {
-		  generating: boolean;
-		  error: string | null;
-		  sideDataUrl: string | null;
-		  sideMimeType: string | null;
-		  backDataUrl: string | null;
-		  backMimeType: string | null;
-		  timingsMs: { side: number; back: number; total: number } | null;
-		};
+			type StoryboardAnglesRuntime = {
+			  generating: boolean;
+			  error: string | null;
+			  sideDataUrl: string | null;
+			  sideMimeType: string | null;
+			  backDataUrl: string | null;
+			  backMimeType: string | null;
+			  timingsMs: { side: number; back: number; total: number } | null;
+			};
 
-		type StoryboardRuntime = {
-		  garmentDataUrls: string[];
-		  garmentFileNames: string[];
-		  garmentRefDataUrl: string | null;
-		  garmentRefMimeType: string | null;
-		  lastPlan: LookPlan | null;
-		  lastFinalPrompt: string | null;
-		  angles: StoryboardAnglesRuntime;
-		  generateError: string | null;
-		  chosenSummary: any;
-		  debugSummary: any;
-		  resultDataUrl: string | null;
+			type StoryboardPrintsRuntime = {
+			  baseGarmentDataUrl: string | null;
+			  baseGarmentFileName: string | null;
+			  printDesignDataUrl: string | null;
+			  printDesignFileName: string | null;
+			  outputDataUrl: string | null;
+			  outputMimeType: string | null;
+			  generating: boolean;
+			  error: string | null;
+			  timingsMs: number | null;
+			};
+
+			type StoryboardRuntime = {
+			  garmentDataUrls: string[];
+			  garmentFileNames: string[];
+			  garmentRefDataUrl: string | null;
+			  garmentRefMimeType: string | null;
+			  lastPlan: LookPlan | null;
+			  lastFinalPrompt: string | null;
+			  prints: StoryboardPrintsRuntime;
+			  angles: StoryboardAnglesRuntime;
+			  generateError: string | null;
+			  chosenSummary: any;
+			  debugSummary: any;
+			  resultDataUrl: string | null;
 		  resultMimeType: string | null;
 		  resultTimingsMs: Record<string, number> | null;
 		};
 
-		function createDefaultAnglesRuntime(): StoryboardAnglesRuntime {
-		  return {
-		    generating: false,
-		    error: null,
-		    sideDataUrl: null,
-		    sideMimeType: null,
-		    backDataUrl: null,
-		    backMimeType: null,
-		    timingsMs: null,
-		  };
-		}
+			function createDefaultAnglesRuntime(): StoryboardAnglesRuntime {
+			  return {
+			    generating: false,
+			    error: null,
+			    sideDataUrl: null,
+			    sideMimeType: null,
+			    backDataUrl: null,
+			    backMimeType: null,
+			    timingsMs: null,
+			  };
+			}
 
-		function createDefaultRuntime(): StoryboardRuntime {
-		  return {
-		    garmentDataUrls: [],
-		    garmentFileNames: [],
-		    garmentRefDataUrl: null,
-		    garmentRefMimeType: null,
-		    lastPlan: null,
-		    lastFinalPrompt: null,
-		    angles: createDefaultAnglesRuntime(),
-		    generateError: null,
-		    chosenSummary: null,
-		    debugSummary: null,
-		    resultDataUrl: null,
+			function createDefaultPrintsRuntime(): StoryboardPrintsRuntime {
+			  return {
+			    baseGarmentDataUrl: null,
+			    baseGarmentFileName: null,
+			    printDesignDataUrl: null,
+			    printDesignFileName: null,
+			    outputDataUrl: null,
+			    outputMimeType: null,
+			    generating: false,
+			    error: null,
+			    timingsMs: null,
+			  };
+			}
+
+			function createDefaultRuntime(): StoryboardRuntime {
+			  return {
+			    garmentDataUrls: [],
+			    garmentFileNames: [],
+			    garmentRefDataUrl: null,
+			    garmentRefMimeType: null,
+			    lastPlan: null,
+			    lastFinalPrompt: null,
+			    prints: createDefaultPrintsRuntime(),
+			    angles: createDefaultAnglesRuntime(),
+			    generateError: null,
+			    chosenSummary: null,
+			    debugSummary: null,
+			    resultDataUrl: null,
 		    resultMimeType: null,
 		    resultTimingsMs: null,
 		  };
@@ -423,19 +506,20 @@ function uniqueTitle(base: string): string {
 		  const src = activeStoryboard.value;
 		  const dst = createStoryboardRecord({ title: uniqueTitle(`${src.title} (copy)`), config: { ...src.config } });
 		  storyboards.value.unshift(dst);
-		  storyboardRuntime.value[dst.id] = {
-		    ...createDefaultRuntime(),
-		    garmentDataUrls: [...activeRuntime.value.garmentDataUrls],
-		    garmentFileNames: [...activeRuntime.value.garmentFileNames],
-		    garmentRefDataUrl: activeRuntime.value.garmentRefDataUrl,
-		    garmentRefMimeType: activeRuntime.value.garmentRefMimeType,
-		    lastPlan: activeRuntime.value.lastPlan ? safeClone(activeRuntime.value.lastPlan) : null,
-		    lastFinalPrompt: activeRuntime.value.lastFinalPrompt,
-		    angles: {
-		      ...createDefaultAnglesRuntime(),
-		      sideDataUrl: activeRuntime.value.angles.sideDataUrl,
-		      sideMimeType: activeRuntime.value.angles.sideMimeType,
-		      backDataUrl: activeRuntime.value.angles.backDataUrl,
+			  storyboardRuntime.value[dst.id] = {
+			    ...createDefaultRuntime(),
+			    garmentDataUrls: [...activeRuntime.value.garmentDataUrls],
+			    garmentFileNames: [...activeRuntime.value.garmentFileNames],
+			    garmentRefDataUrl: activeRuntime.value.garmentRefDataUrl,
+			    garmentRefMimeType: activeRuntime.value.garmentRefMimeType,
+			    lastPlan: activeRuntime.value.lastPlan ? safeClone(activeRuntime.value.lastPlan) : null,
+			    lastFinalPrompt: activeRuntime.value.lastFinalPrompt,
+			    prints: safeClone(activeRuntime.value.prints),
+			    angles: {
+			      ...createDefaultAnglesRuntime(),
+			      sideDataUrl: activeRuntime.value.angles.sideDataUrl,
+			      sideMimeType: activeRuntime.value.angles.sideMimeType,
+			      backDataUrl: activeRuntime.value.angles.backDataUrl,
 		      backMimeType: activeRuntime.value.angles.backMimeType,
 		      timingsMs: activeRuntime.value.angles.timingsMs ? { ...activeRuntime.value.angles.timingsMs } : null,
 		    },
@@ -537,6 +621,122 @@ async function onGarmentFileChange(e: Event) {
   runtime.garmentDataUrls.push(...dataUrls);
 
   if (input) input.value = "";
+}
+
+async function onPrintBaseGarmentFileChange(e: Event) {
+  const input = e.target as HTMLInputElement | null;
+  const file = input?.files?.[0] ?? null;
+  const runtime = activeRuntime.value;
+  runtime.prints.error = null;
+
+  if (!file) {
+    if (input) input.value = "";
+    return;
+  }
+
+  runtime.prints.baseGarmentFileName = file.name || "base-garment";
+  runtime.prints.baseGarmentDataUrl = await fileToDataUrl(file);
+  runtime.prints.outputDataUrl = null;
+  runtime.prints.outputMimeType = null;
+  runtime.prints.timingsMs = null;
+
+  if (input) input.value = "";
+}
+
+async function onPrintDesignFileChange(e: Event) {
+  const input = e.target as HTMLInputElement | null;
+  const file = input?.files?.[0] ?? null;
+  const runtime = activeRuntime.value;
+  runtime.prints.error = null;
+
+  if (!file) {
+    if (input) input.value = "";
+    return;
+  }
+
+  runtime.prints.printDesignFileName = file.name || "print-design";
+  runtime.prints.printDesignDataUrl = await fileToDataUrl(file);
+  runtime.prints.outputDataUrl = null;
+  runtime.prints.outputMimeType = null;
+  runtime.prints.timingsMs = null;
+
+  if (input) input.value = "";
+}
+
+function removePrintBaseGarment() {
+  const runtime = activeRuntime.value;
+  runtime.prints.baseGarmentDataUrl = null;
+  runtime.prints.baseGarmentFileName = null;
+  runtime.prints.outputDataUrl = null;
+  runtime.prints.outputMimeType = null;
+  runtime.prints.timingsMs = null;
+  runtime.prints.error = null;
+}
+
+function removePrintDesign() {
+  const runtime = activeRuntime.value;
+  runtime.prints.printDesignDataUrl = null;
+  runtime.prints.printDesignFileName = null;
+  runtime.prints.outputDataUrl = null;
+  runtime.prints.outputMimeType = null;
+  runtime.prints.timingsMs = null;
+  runtime.prints.error = null;
+}
+
+async function generatePrintedGarment(retryComment?: string) {
+  const runtime = activeRuntime.value;
+  runtime.prints.error = null;
+
+  const apiKey = geminiApiKey.value.trim();
+  if (!apiKey) {
+    runtime.prints.error = "Please paste your API key (BYO key).";
+    return;
+  }
+
+  if (!runtime.prints.baseGarmentDataUrl) {
+    runtime.prints.error = "Please upload a white garment photo.";
+    return;
+  }
+  if (!runtime.prints.printDesignDataUrl) {
+    runtime.prints.error = "Please upload a print/design image.";
+    return;
+  }
+
+  runtime.prints.generating = true;
+  runtime.prints.outputDataUrl = null;
+  runtime.prints.outputMimeType = null;
+  runtime.prints.timingsMs = null;
+
+  try {
+    const baseInline = dataUrlToInlineImage(runtime.prints.baseGarmentDataUrl);
+    const designInline = dataUrlToInlineImage(runtime.prints.printDesignDataUrl);
+
+    const prompt = buildPrintApplicationPrompt({
+      additionalPrompt: activeConfig.value.printAdditionalPrompt || "",
+      ...(typeof retryComment === "string" ? { retryComment } : {}),
+    });
+
+    const t0 = performance.now();
+	    const out = await generateImage({
+	      apiKey,
+	      model: "gemini-3-pro-image-preview",
+	      promptText: prompt,
+	      images: [baseInline, designInline],
+	      timeoutMs: 180_000,
+	    });
+    runtime.prints.timingsMs = Math.round(performance.now() - t0);
+
+    runtime.prints.outputMimeType = out.mimeType;
+    runtime.prints.outputDataUrl = `data:${out.mimeType};base64,${out.imageBase64}`;
+  } catch (err: any) {
+    runtime.prints.error = err?.message || String(err);
+  } finally {
+    runtime.prints.generating = false;
+  }
+}
+
+async function retryPrintedGarment(retryComment: string) {
+  return generatePrintedGarment(retryComment);
 }
 
 const isGenerating = ref(false);

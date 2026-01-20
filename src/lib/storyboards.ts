@@ -63,6 +63,7 @@ export type StoryboardConfig = {
   occasionDetails: string;
   colorScheme: string;
   accessories: string;
+  printAdditionalPrompt: string;
   footwearPreset: string;
   footwearDetails: string;
   stylePreset: string;
@@ -92,6 +93,7 @@ export function createDefaultStoryboardConfig(): StoryboardConfig {
     occasionDetails: "",
     colorScheme: "",
     accessories: "",
+    printAdditionalPrompt: "",
     footwearPreset: "",
     footwearDetails: "",
     stylePreset: "",
@@ -236,6 +238,7 @@ function normalizeConfig(value: unknown): StoryboardConfig {
     occasionDetails: asString(raw.occasionDetails) ?? base.occasionDetails,
     colorScheme: asString(raw.colorScheme) ?? base.colorScheme,
     accessories: asString(raw.accessories) ?? base.accessories,
+    printAdditionalPrompt: asString(raw.printAdditionalPrompt) ?? base.printAdditionalPrompt,
     footwearPreset: normalizeFootwearPreset(asString(raw.footwearPreset) ?? base.footwearPreset),
     footwearDetails: asString(raw.footwearDetails) ?? base.footwearDetails,
     stylePreset: normalizeStylePreset(asString(raw.stylePreset) ?? base.stylePreset),

@@ -13,9 +13,14 @@ Open `http://localhost:5173/ecommerce-scene-generator/` (adjust if you change `b
 
 ## Storyboards (idea management)
 
-- The app opens to a storyboard library view.
+- The app uses storyboards to store creative settings (occasion, background theme, accessories, etc.) in `localStorage`.
 - Each storyboard stores its settings (occasion, background theme, accessories, etc.) in `localStorage`.
 - Create / rename / duplicate / delete storyboards from the UI.
+
+## Tabs
+
+- **Prints (first tab):** upload a white garment photo + a print/design image (pattern or solid color swatch), optionally add a prompt, then click **Generate printed garment**.
+- **Generate (second tab):** pick a storyboard and generate the final photorealistic ecommerce scene.
 
 ## Build & deploy (GitHub Pages)
 
