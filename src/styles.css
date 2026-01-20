@@ -379,6 +379,12 @@ label {
   text-transform: uppercase;
 }
 
+.print-header {
+  margin: 0;
+  font-weight: 800;
+  color: #222;
+  text-transform: uppercase;
+}
 .control,
 input[type="text"],
 select {

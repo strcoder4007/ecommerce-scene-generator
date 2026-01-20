@@ -3,9 +3,6 @@
     <div class="header">
       <div>
         <h1 class="title titleLarge">Fashion image Gen</h1>
-        <p class="subtitle">
-          Upload a garment image → auto-pick (or invent) model/background → generate a photorealistic look.
-        </p>
       </div>
       <ApiKeyInput v-model="geminiApiKey" />
     </div>
@@ -149,7 +146,7 @@ import {
   occasionPresetLabelByValue,
   stylePresetLabelByValue,
 } from "./lib/presets";
-import { fileToDataUrl, nowIso, parseTags as parseLocalTags } from "./lib/utils";
+import { fileToDataUrl, normalizeHexColor, nowIso, parseTags as parseLocalTags } from "./lib/utils";
 import {
   createStoryboardRecord,
   loadActiveStoryboardIdFromLocalStorage,
@@ -201,6 +198,18 @@ function combinePresetAndCustom(opts: { presetText: string; customText: string; 
   if (!p) return c;
   if (!c) return p;
   return `${p}${opts.joiner ?? ", "}${c}`;
+}
+
+function createColorSwatchDataUrl(hexColor: string): string {
+  const canvas = document.createElement("canvas");
+  const size = 96;
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Your browser does not support canvas color swatches.");
+  ctx.fillStyle = hexColor;
+  ctx.fillRect(0, 0, size, size);
+  return canvas.toDataURL("image/png");
 }
 
 const generateView = ref<"library" | "editor">("library");
@@ -697,8 +706,18 @@ async function generatePrintedGarment(retryComment?: string) {
     runtime.prints.error = "Please upload a white garment photo.";
     return;
   }
-  if (!runtime.prints.printDesignDataUrl) {
-    runtime.prints.error = "Please upload a print/design image.";
+
+  const printInputKind = activeConfig.value.printInputKind;
+  const printColorHex =
+    printInputKind === "color" ? normalizeHexColor(activeConfig.value.printColorHex || "") : null;
+
+  if (printInputKind === "color") {
+    if (!printColorHex) {
+      runtime.prints.error = "Please enter a hex color (e.g. #FF3366).";
+      return;
+    }
+  } else if (!runtime.prints.printDesignDataUrl) {
+    runtime.prints.error = "Please upload a print/design image (or switch to Colors).";
     return;
   }
 
@@ -707,12 +726,16 @@ async function generatePrintedGarment(retryComment?: string) {
   runtime.prints.outputMimeType = null;
   runtime.prints.timingsMs = null;
 
-  try {
-    const baseInline = dataUrlToInlineImage(runtime.prints.baseGarmentDataUrl);
-    const designInline = dataUrlToInlineImage(runtime.prints.printDesignDataUrl);
+	  try {
+	    const baseInline = dataUrlToInlineImage(runtime.prints.baseGarmentDataUrl);
+	    const images =
+	      printInputKind === "color"
+	        ? [baseInline, dataUrlToInlineImage(createColorSwatchDataUrl(printColorHex!))]
+	        : [baseInline, dataUrlToInlineImage(runtime.prints.printDesignDataUrl!)];
 
-    const prompt = buildPrintApplicationPrompt({
-      additionalPrompt: activeConfig.value.printAdditionalPrompt || "",
+	    const prompt = buildPrintApplicationPrompt({
+	      additionalPrompt: activeConfig.value.printAdditionalPrompt || "",
+	      ...(printColorHex ? { colorHex: printColorHex } : {}),
       ...(typeof retryComment === "string" ? { retryComment } : {}),
     });
 
@@ -721,7 +744,7 @@ async function generatePrintedGarment(retryComment?: string) {
 	      apiKey,
 	      model: "gemini-3-pro-image-preview",
 	      promptText: prompt,
-	      images: [baseInline, designInline],
+	      images,
 	      timeoutMs: 180_000,
 	    });
     runtime.prints.timingsMs = Math.round(performance.now() - t0);

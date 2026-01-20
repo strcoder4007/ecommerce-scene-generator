@@ -4,7 +4,7 @@
       <div class="sectionTitle" style="margin-top: 0">Inputs</div>
 
       <div class="row" style="margin-top: 10px">
-        <div>
+        <div class="card">
           <FieldLabel
             htmlFor="printBaseGarment"
             label="White garment photo"
@@ -31,31 +31,94 @@
           </div>
         </div>
 
-        <div class="prints-and-colors">
-          <FieldLabel
-            htmlFor="printDesign"
-            label="Print / design image"
-            info="Upload the artwork/print to apply (pattern image or a solid color swatch image)."
-          />
-          <input id="printDesign" type="file" accept="image/*" @change="onPrintDesignFileChange" />
-
-          <div v-if="runtime.prints.printDesignDataUrl" class="preview" style="grid-template-columns: 1fr">
-            <div class="previewItem">
-              <img :src="runtime.prints.printDesignDataUrl" alt="Print / design image" draggable="false" />
-              <button
-                type="button"
-                class="removePreviewButton"
-                @click="removePrintDesign"
-                aria-label="Remove print/design image"
-                title="Remove image"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path d="M18 6 6 18" />
-                  <path d="M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+        <div class="prints-and-colors card">
+          <div class="print-header">PRINTS</div><br>
+          <div class="tabGroup" role="tablist" aria-label="Print input mode" style="margin-bottom: 10px">
+            <button
+              type="button"
+              :class="config.printInputKind === 'image' ? 'tabButton tabButtonActive' : 'tabButton'"
+              :aria-selected="config.printInputKind === 'image'"
+              @click="config.printInputKind = 'image'"
+            >
+              Image
+            </button>
+            <button
+              type="button"
+              :class="config.printInputKind === 'color' ? 'tabButton tabButtonActive' : 'tabButton'"
+              :aria-selected="config.printInputKind === 'color'"
+              @click="config.printInputKind = 'color'"
+            >
+              Colors
+            </button>
           </div>
+
+          <br>
+          <br>
+
+
+          <template v-if="config.printInputKind === 'color'">
+            <FieldLabel
+              htmlFor="printColorHex"
+              label="Color"
+              info="Pick a solid color to apply to the garment fabric (hex). The print/design image (if uploaded) will be ignored in this mode."
+            />
+
+            <div style="display: flex; gap: 10px; align-items: center">
+              <input
+                id="printColorPicker"
+                type="color"
+                :value="colorPickerValue"
+                @input="onColorPickerInput"
+                aria-label="Pick a color"
+                style="
+                  width: 54px;
+                  height: 44px;
+                  padding: 0;
+                  border-radius: 12px;
+                  border: 1px solid var(--border);
+                  background: var(--surface-solid);
+                "
+              />
+              <input
+                id="printColorHex"
+                class="control"
+                type="text"
+                v-model="config.printColorHex"
+                placeholder="#RRGGBB"
+                @blur="normalizeColorHex"
+              />
+            </div>
+            <div v-if="config.printColorHex.trim() && !isValidColorHex" class="muted" style="margin-top: 8px">
+              Please enter a valid hex color (e.g. #FF3366).
+            </div>
+          </template>
+
+          <template v-else>
+            <FieldLabel
+              htmlFor="printDesign"
+              label=""
+              info="Upload the artwork/print to apply (pattern image or a solid color swatch image)."
+            />
+            <input id="printDesign" type="file" accept="image/*" @change="onPrintDesignFileChange" />
+
+            <div v-if="runtime.prints.printDesignDataUrl" class="preview" style="grid-template-columns: 1fr">
+              <div class="previewItem">
+                <img :src="runtime.prints.printDesignDataUrl" alt="Print / design image" draggable="false" />
+                <button
+                  type="button"
+                  class="removePreviewButton"
+                  @click="removePrintDesign"
+                  aria-label="Remove print/design image"
+                  title="Remove image"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M18 6 6 18" />
+                    <path d="M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </template>
         </div>
       </div>
 
@@ -81,7 +144,11 @@
           type="button"
           class="btnPrimary"
           @click="$emit('generate')"
-          :disabled="isBusy || !runtime.prints.baseGarmentDataUrl || !runtime.prints.printDesignDataUrl"
+          :disabled="
+            isBusy ||
+            !runtime.prints.baseGarmentDataUrl ||
+            (config.printInputKind === 'color' ? !isValidColorHex : !runtime.prints.printDesignDataUrl)
+          "
         >
           {{ runtime.prints.generating ? "Generating..." : "Generate printed garment" }}
         </button>
@@ -195,9 +262,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import FieldLabel from "./FieldLabel.vue";
 import type { StoryboardConfig } from "../lib/storyboards";
+import { normalizeHexColor } from "../lib/utils";
 
 type PrintsRuntimeLite = {
   baseGarmentDataUrl: string | null;
@@ -210,7 +278,7 @@ type PrintsRuntimeLite = {
 
 type RuntimeLite = { prints: PrintsRuntimeLite };
 
-defineProps<{
+const props = defineProps<{
   storyboardTitle: string;
   config: StoryboardConfig;
   runtime: RuntimeLite;
@@ -232,8 +300,22 @@ const emit = defineEmits<{
 const retryOpen = ref(false);
 const retryComments = ref("");
 
+const colorPickerValue = computed(() => normalizeHexColor(props.config.printColorHex) || "#000000");
+const isValidColorHex = computed(() => Boolean(normalizeHexColor(props.config.printColorHex)));
+
 function toggleRetry() {
   retryOpen.value = !retryOpen.value;
+}
+
+function onColorPickerInput(e: Event) {
+  const el = e.target as HTMLInputElement | null;
+  const value = (el?.value || "").trim();
+  props.config.printColorHex = normalizeHexColor(value) || value;
+}
+
+function normalizeColorHex() {
+  const normalized = normalizeHexColor(props.config.printColorHex);
+  if (normalized) props.config.printColorHex = normalized;
 }
 
 function emitRetry() {

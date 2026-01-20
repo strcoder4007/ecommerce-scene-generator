@@ -1,4 +1,4 @@
-import { nowIso, randomId } from "./utils";
+import { normalizeHexColor, nowIso, randomId } from "./utils";
 
 export const STORYBOARDS_STORAGE_KEY = "esg_storyboards_v1";
 export const ACTIVE_STORYBOARD_ID_KEY = "esg_active_storyboard_id_v1";
@@ -63,6 +63,8 @@ export type StoryboardConfig = {
   occasionDetails: string;
   colorScheme: string;
   accessories: string;
+  printInputKind: "image" | "color";
+  printColorHex: string;
   printAdditionalPrompt: string;
   footwearPreset: string;
   footwearDetails: string;
@@ -93,6 +95,8 @@ export function createDefaultStoryboardConfig(): StoryboardConfig {
     occasionDetails: "",
     colorScheme: "",
     accessories: "",
+    printInputKind: "image",
+    printColorHex: "",
     printAdditionalPrompt: "",
     footwearPreset: "",
     footwearDetails: "",
@@ -233,11 +237,17 @@ function normalizeConfig(value: unknown): StoryboardConfig {
   const base = createDefaultStoryboardConfig();
   const raw = (value ?? {}) as Record<string, unknown>;
   const includeDebugStr = asString(raw.includeDebugStr);
+  const printInputKind = asString(raw.printInputKind);
+  const normalizedPrintInputKind = printInputKind === "color" ? "color" : "image";
+  const printColorHexRaw = asString(raw.printColorHex) ?? base.printColorHex;
+  const normalizedPrintColorHex = normalizeHexColor(printColorHexRaw) ?? base.printColorHex;
   return {
     occasionPreset: normalizeOccasionPreset(asString(raw.occasionPreset) ?? base.occasionPreset),
     occasionDetails: asString(raw.occasionDetails) ?? base.occasionDetails,
     colorScheme: asString(raw.colorScheme) ?? base.colorScheme,
     accessories: asString(raw.accessories) ?? base.accessories,
+    printInputKind: normalizedPrintInputKind,
+    printColorHex: normalizedPrintColorHex,
     printAdditionalPrompt: asString(raw.printAdditionalPrompt) ?? base.printAdditionalPrompt,
     footwearPreset: normalizeFootwearPreset(asString(raw.footwearPreset) ?? base.footwearPreset),
     footwearDetails: asString(raw.footwearDetails) ?? base.footwearDetails,

@@ -203,7 +203,7 @@ export async function generateImage(opts: {
     contents: [{ role: "user", parts }],
     generationConfig: {
       temperature: typeof opts.temperature === "number" ? opts.temperature : 0.2,
-      responseModalities: ["TEXT", "IMAGE"],
+      responseModalities: ["IMAGE"],
       ...((opts.aspectRatio || opts.width || opts.height)
         ? {
             imageConfig: {
@@ -268,7 +268,13 @@ export async function generateImage(opts: {
   }
 
   const inline = pickResponseInlineImage(json);
-  if (!inline) throw new GeminiError("Gemini API did not return an image.");
+  if (!inline) {
+    const responseText = pickResponseJsonText(json);
+    const detail = (responseText || "").trim();
+    throw new GeminiError(
+      `Gemini API did not return an image.${detail ? ` Response text: ${detail.slice(0, 500)}` : ""}`,
+    );
+  }
   return { mimeType: inline.mimeType, imageBase64: inline.data, raw: json };
 }
 
