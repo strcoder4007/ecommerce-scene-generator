@@ -1,112 +1,142 @@
 <template>
-  <div class="container">
-    <div class="header">
-      <div>
-        <h1 class="title titleLarge">Fashion image Gen</h1>
-      </div>
-    </div>
+  <div class="appRoot">
+    <div class="appShell">
+      <aside class="sidebar">
+        <div class="sidebarBrand">
+          <div class="brandEyebrow">Studio</div>
+          <div class="brandTitle">Fashion image Gen</div>
+          <div class="brandSub">Ecommerce scene generator</div>
+        </div>
+        <nav class="sidebarNav" role="tablist" aria-label="Main sections">
+          <button
+            type="button"
+            :class="activeTab === 'prints' ? 'navButton navButtonActive' : 'navButton'"
+            :aria-selected="activeTab === 'prints'"
+            @click="activeTab = 'prints'"
+          >
+            Prints
+          </button>
+          <button
+            type="button"
+            :class="activeTab === 'generate' ? 'navButton navButtonActive' : 'navButton'"
+            :aria-selected="activeTab === 'generate'"
+            @click="activeTab = 'generate'"
+          >
+            Generate
+          </button>
+          <button
+            type="button"
+            :class="activeTab === 'assets' ? 'navButton navButtonActive' : 'navButton'"
+            :aria-selected="activeTab === 'assets'"
+            @click="activeTab = 'assets'"
+          >
+            Assets
+          </button>
+        </nav>
+      </aside>
 
-    <div class="tabRow">
-      <div class="tabGroup" role="tablist" aria-label="Main tabs">
-        <button
-          type="button"
-          :class="activeTab === 'prints' ? 'tabButton tabButtonActive' : 'tabButton'"
-          :aria-selected="activeTab === 'prints'"
-          @click="activeTab = 'prints'"
-        >
-          Prints
-        </button>
-        <button
-          type="button"
-          :class="activeTab === 'generate' ? 'tabButton tabButtonActive' : 'tabButton'"
-          :aria-selected="activeTab === 'generate'"
-          @click="activeTab = 'generate'"
-        >
-          Generate
-        </button>
-      </div>
-    </div>
-
-    <template v-if="activeTab === 'prints'">
-      <PrintsTab
-        :storyboard-title="activeStoryboard.title"
-        :config="activeConfig"
-        :runtime="activeRuntime"
-        :is-busy="isGenerating || activeRuntime.prints.generating"
-        :mime-to-extension="mimeToExtension"
-        :on-base-garment-file-change="onPrintBaseGarmentFileChange"
-        :on-print-design-file-change="onPrintDesignFileChange"
-        :remove-base-garment="removePrintBaseGarment"
-        :remove-print-design="removePrintDesign"
-        @generate="generatePrintedGarment"
-        @retry="retryPrintedGarment"
-        @go-generate="activeTab = 'generate'"
-        @open-image="(src, title) => openImageModal(src, title, title)"
-      />
-    </template>
-
-    <template v-else>
-      <div>
-        <StoryboardLibrary
-          v-if="generateView === 'library'"
-          :storyboards="storyboards"
-          :active-id="activeStoryboardId"
-          :runtime-by-id="storyboardRuntime"
-          :is-generating="isGenerating"
-          :subtitle-for="storyboardSubtitle"
-          :format-timestamp="formatStoryboardTimestamp"
-          @create="createNewStoryboard"
-          @open="openStoryboard"
-        />
-
-        <div v-else class="card storyboardEditorCard">
-          <StoryboardEditorHeader
-            :title="activeStoryboard.title"
-            :updated-at="activeStoryboard.updatedAt"
-            :disabled="isGenerating"
-            :can-delete="storyboards.length > 1"
-            :format-timestamp="formatStoryboardTimestamp"
-            @back="enterStoryboardLibrary"
-            @duplicate="duplicateActiveStoryboard"
-            @request-delete="requestDeleteActiveStoryboard"
-            @update:title="(v) => (activeStoryboard.title = v)"
-          />
-
-          <div class="divider storyboardEditorDivider" aria-hidden="true"></div>
-
-          <div class="storyboardEditorCardBody">
-            <div class="grid storyBoard">
-              <StoryboardFormCards
-                :config="activeConfig"
-                :runtime="activeRuntime"
-                :active-storyboard-id="activeStoryboardId"
-                :is-generating="isGenerating"
-                :on-garment-file-change="onGarmentFileChange"
-                :remove-garment-image="removeGarmentImage"
-                @submit="onGenerateLook"
-              />
-
-              <StoryboardResultsPane
-                :is-generating="isGenerating"
-                :generation-step-index="generationStepIndex"
-                :generation-elapsed-ms="generationElapsedMs"
-                :generation-steps="GENERATION_STEPS"
-                :runtime="activeRuntime"
-                :computed-timings="computedTimings"
-                :format-duration-ms="formatDurationMs"
-                :mime-to-extension="mimeToExtension"
-                :on-result-image-pointer-move="onResultImagePointerMove"
-                :on-result-image-pointer-leave="onResultImagePointerLeave"
-                @open-image="openImageModal"
-                @retry="retryMainImage"
-                @generate-angles="generateMultipleAngles"
-                @download-all="downloadAllImages"
-              />
+      <main class="mainContent">
+        <div class="container">
+          <div class="header">
+            <div>
+              <h1 class="title titleLarge">{{ activeTabLabel }}</h1>
             </div>
           </div>
+
+          <template v-if="activeTab === 'prints'">
+            <PrintsTab
+              :storyboard-title="activeStoryboard.title"
+              :config="activeConfig"
+              :runtime="activeRuntime"
+              :is-busy="isGenerating || activeRuntime.prints.generating"
+              :mime-to-extension="mimeToExtension"
+              :on-base-garment-file-change="onPrintBaseGarmentFileChange"
+              :on-print-design-file-change="onPrintDesignFileChange"
+              :remove-base-garment="removePrintBaseGarment"
+              :remove-print-design="removePrintDesign"
+              @generate="generatePrintedGarment"
+              @retry="retryPrintedGarment"
+              @go-generate="activeTab = 'generate'"
+              @open-image="(src, title) => openImageModal(src, title, title)"
+            />
+          </template>
+
+          <template v-else-if="activeTab === 'generate'">
+            <div>
+              <StoryboardLibrary
+                v-if="generateView === 'library'"
+                :storyboards="storyboards"
+                :active-id="activeStoryboardId"
+                :runtime-by-id="storyboardRuntime"
+                :is-generating="isGenerating"
+                :subtitle-for="storyboardSubtitle"
+                :format-timestamp="formatStoryboardTimestamp"
+                @create="createNewStoryboard"
+                @open="openStoryboard"
+              />
+
+              <div v-else class="card storyboardEditorCard">
+                <StoryboardEditorHeader
+                  :title="activeStoryboard.title"
+                  :updated-at="activeStoryboard.updatedAt"
+                  :disabled="isGenerating"
+                  :can-delete="storyboards.length > 1"
+                  :format-timestamp="formatStoryboardTimestamp"
+                  @back="enterStoryboardLibrary"
+                  @duplicate="duplicateActiveStoryboard"
+                  @request-delete="requestDeleteActiveStoryboard"
+                  @update:title="(v) => (activeStoryboard.title = v)"
+                />
+
+                <div class="divider storyboardEditorDivider" aria-hidden="true"></div>
+
+                <div class="storyboardEditorCardBody">
+                  <div class="grid storyBoard">
+                    <StoryboardFormCards
+                      :config="activeConfig"
+                      :runtime="activeRuntime"
+                      :active-storyboard-id="activeStoryboardId"
+                      :is-generating="isGenerating"
+                      :on-garment-file-change="onGarmentFileChange"
+                      :remove-garment-image="removeGarmentImage"
+                      @submit="onGenerateLook"
+                    />
+
+                    <StoryboardResultsPane
+                      :is-generating="isGenerating"
+                      :generation-step-index="generationStepIndex"
+                      :generation-elapsed-ms="generationElapsedMs"
+                      :generation-steps="GENERATION_STEPS"
+                      :runtime="activeRuntime"
+                      :computed-timings="computedTimings"
+                      :format-duration-ms="formatDurationMs"
+                      :mime-to-extension="mimeToExtension"
+                      :on-result-image-pointer-move="onResultImagePointerMove"
+                      :on-result-image-pointer-leave="onResultImagePointerLeave"
+                      @open-image="openImageModal"
+                      @retry="retryMainImage"
+                      @generate-angles="generateMultipleAngles"
+                      @download-all="downloadAllImages"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template v-else>
+            <div class="card assetsEmpty">
+              <div class="resultEmpty">
+                <div>
+                  <div class="resultEmptyTitle">No assets yet</div>
+                  <div class="muted">This space will hold brand assets, fabrics, and references.</div>
+                </div>
+              </div>
+            </div>
+          </template>
         </div>
-      </div>
-    </template>
+      </main>
+    </div>
 
     <ImageModal
       :open="Boolean(imageModal)"
@@ -213,8 +243,13 @@ function createColorSwatchDataUrl(hexColor: string): string {
 const generateView = ref<"library" | "editor">("library");
 
 const ACTIVE_TAB_KEY = "esg_active_tab_v1";
-const activeTab = ref<"prints" | "generate">(
-  (localStorage.getItem(ACTIVE_TAB_KEY) as "prints" | "generate" | null) || "prints",
+type AppTab = "prints" | "generate" | "assets";
+const storedTab = localStorage.getItem(ACTIVE_TAB_KEY) as AppTab | null;
+const activeTab = ref<AppTab>(
+  storedTab === "prints" || storedTab === "generate" || storedTab === "assets" ? storedTab : "prints",
+);
+const activeTabLabel = computed(() =>
+  activeTab.value === "prints" ? "Prints" : activeTab.value === "assets" ? "Assets" : "Generate",
 );
 watch(
   activeTab,
