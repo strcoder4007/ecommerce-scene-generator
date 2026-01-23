@@ -18,6 +18,15 @@ export async function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+export async function blobToDataUrl(blob: Blob): Promise<string> {
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.readAsDataURL(blob);
+  });
+}
+
 export function dataUrlToBlob(dataUrl: string): { blob: Blob; mimeType: string } {
   const trimmed = (dataUrl || "").trim();
   const match = trimmed.match(/^data:([^;]+);base64,(.+)$/);

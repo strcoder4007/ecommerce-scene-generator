@@ -188,6 +188,27 @@
           </a>
           <button
             type="button"
+            class="btn btnGhost iconButton"
+            style="width: 110px"
+            @click="$emit('save')"
+            :disabled="isBusy || !runtime.prints.outputDataUrl"
+            aria-label="Save printed garment"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+            </svg>&nbsp;&nbsp;Save
+          </button>
+          <button
+            type="button"
             class="btnGhost iconButton"
             @click="$emit('open-image', runtime.prints.outputDataUrl, 'Printed garment')"
             aria-label="Open printed garment"
@@ -295,6 +316,7 @@ const emit = defineEmits<{
   (e: "retry", comment: string): void;
   (e: "go-generate"): void;
   (e: "open-image", src: string, title: string): void;
+  (e: "save"): void;
 }>();
 
 const retryOpen = ref(false);

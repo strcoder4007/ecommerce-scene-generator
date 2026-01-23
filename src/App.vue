@@ -5,7 +5,6 @@
         <div class="sidebarBrand">
           <div class="brandEyebrow">Studio</div>
           <div class="brandTitle">Fashion Image Generator</div>
-          <div class="brandSub">Ecommerce scene generator</div>
         </div>
         <nav class="sidebarNav" role="tablist" aria-label="Main sections">
           <button
@@ -72,6 +71,7 @@
               :remove-print-design="removePrintDesign"
               @generate="generatePrintedGarment"
               @retry="retryPrintedGarment"
+              @save="savePrintedGarment"
               @go-generate="activeTab = 'generate'"
               @open-image="(src, title) => openImageModal(src, title, title)"
             />
@@ -115,7 +115,10 @@
                       :is-generating="isGenerating"
                       :on-garment-file-change="onGarmentFileChange"
                       :remove-garment-image="removeGarmentImage"
+                      :remove-background-image="removeBackgroundImage"
+                      :remove-model-image="removeModelImage"
                       @submit="onGenerateLook"
+                      @open-image="openImageModal"
                     />
 
                     <StoryboardResultsPane
@@ -169,11 +172,128 @@
           </template>
 
           <template v-else>
-            <div class="assetsEmpty">
-              <div class="resultEmpty">
+            <div class="card">
+              <div class="sectionTitle" style="margin-top: 0">Uploaded assets</div>
+              <div class="title" style="font-size: 18px; margin: 0">Backgrounds and models</div>
+              <div class="muted" style="margin-top: 6px">
+                Upload reference images for the active storyboard. The first background and first model are used during generation.
+              </div>
+
+              <div class="row" style="margin-top: 20px">
                 <div>
-                  <div class="resultEmptyTitle">No assets yet</div>
-                  <div class="muted">This space will hold brand assets, fabrics, and references.</div>
+                  <FieldLabel
+                    htmlFor="assetsBackgroundPhoto"
+                    label="Background references"
+                    info="Upload 1–4 background images to lock a setting or mood."
+                  />
+                  <input
+                    id="assetsBackgroundPhoto"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    @change="onBackgroundFileChange"
+                  />
+
+                  <div v-if="activeRuntime.backgroundDataUrls.length" style="margin-top: 12px">
+                    <label>Background preview</label>
+                    <div class="preview previewAssets">
+                      <div
+                        v-for="(src, idx) in activeRuntime.backgroundDataUrls"
+                        :key="`${activeStoryboardId}-bg-asset-${idx}`"
+                        class="previewItem"
+                      >
+                        <img :src="src" :alt="`Background reference ${idx + 1}`" draggable="false" />
+                        <button
+                          type="button"
+                          class="previewActionButton"
+                          @click="openImageModal(src, 'Background reference', 'Background reference')"
+                          :aria-label="`Open background reference ${idx + 1}`"
+                          title="Open image"
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M10 10 5 5" />
+                            <path d="M5 8V5H8" />
+                            <path d="M14 10 19 5" />
+                            <path d="M16 5h3v3" />
+                            <path d="M10 14 5 19" />
+                            <path d="M5 16v3h3" />
+                            <path d="M14 14 19 19" />
+                            <path d="M16 19h3v-3" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="removePreviewButton"
+                          @click="removeBackgroundImage(idx)"
+                          :aria-label="`Remove background image ${idx + 1}`"
+                          title="Remove image"
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M18 6 6 18" />
+                            <path d="M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <FieldLabel
+                    htmlFor="assetsModelPhoto"
+                    label="Model references"
+                    info="Upload 1–4 model reference images to preserve identity and styling."
+                  />
+                  <input
+                    id="assetsModelPhoto"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    @change="onModelFileChange"
+                  />
+
+                  <div v-if="activeRuntime.modelDataUrls.length" style="margin-top: 12px">
+                    <label>Model preview</label>
+                    <div class="preview previewAssets">
+                      <div
+                        v-for="(src, idx) in activeRuntime.modelDataUrls"
+                        :key="`${activeStoryboardId}-model-asset-${idx}`"
+                        class="previewItem"
+                      >
+                        <img :src="src" :alt="`Model reference ${idx + 1}`" draggable="false" />
+                        <button
+                          type="button"
+                          class="previewActionButton"
+                          @click="openImageModal(src, 'Model reference', 'Model reference')"
+                          :aria-label="`Open model reference ${idx + 1}`"
+                          title="Open image"
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M10 10 5 5" />
+                            <path d="M5 8V5H8" />
+                            <path d="M14 10 19 5" />
+                            <path d="M16 5h3v3" />
+                            <path d="M10 14 5 19" />
+                            <path d="M5 16v3h3" />
+                            <path d="M14 14 19 19" />
+                            <path d="M16 19h3v-3" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="removePreviewButton"
+                          @click="removeModelImage(idx)"
+                          :aria-label="`Remove model image ${idx + 1}`"
+                          title="Remove image"
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M18 6 6 18" />
+                            <path d="M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -202,6 +322,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import DeleteStoryboardModal from "./components/DeleteStoryboardModal.vue";
+import FieldLabel from "./components/FieldLabel.vue";
 import ImageModal from "./components/ImageModal.vue";
 import ApiKeyInput from "./components/ApiKeyInput.vue";
 import StoryboardLibrary from "./components/StoryboardLibrary.vue";
@@ -371,6 +492,10 @@ watch(
 			type StoryboardRuntime = {
 			  garmentDataUrls: string[];
 			  garmentFileNames: string[];
+			  backgroundDataUrls: string[];
+			  backgroundFileNames: string[];
+			  modelDataUrls: string[];
+			  modelFileNames: string[];
 			  garmentRefDataUrl: string | null;
 			  garmentRefMimeType: string | null;
 			  lastPlan: LookPlan | null;
@@ -415,6 +540,10 @@ watch(
 			  return {
 			    garmentDataUrls: [],
 			    garmentFileNames: [],
+			    backgroundDataUrls: [],
+			    backgroundFileNames: [],
+			    modelDataUrls: [],
+			    modelFileNames: [],
 			    garmentRefDataUrl: null,
 			    garmentRefMimeType: null,
 			    lastPlan: null,
@@ -502,6 +631,22 @@ function removeGarmentImage(index: number) {
   if (index < 0 || index >= runtime.garmentDataUrls.length) return;
   runtime.garmentDataUrls.splice(index, 1);
   runtime.garmentFileNames.splice(index, 1);
+}
+
+function removeBackgroundImage(index: number) {
+  const runtime = activeRuntime.value;
+  if (!runtime.backgroundDataUrls.length) return;
+  if (index < 0 || index >= runtime.backgroundDataUrls.length) return;
+  runtime.backgroundDataUrls.splice(index, 1);
+  runtime.backgroundFileNames.splice(index, 1);
+}
+
+function removeModelImage(index: number) {
+  const runtime = activeRuntime.value;
+  if (!runtime.modelDataUrls.length) return;
+  if (index < 0 || index >= runtime.modelDataUrls.length) return;
+  runtime.modelDataUrls.splice(index, 1);
+  runtime.modelFileNames.splice(index, 1);
 }
 
 function safeClone<T>(value: T): T {
@@ -663,6 +808,10 @@ function uniqueTitle(base: string): string {
 			    ...createDefaultRuntime(),
 			    garmentDataUrls: [...activeRuntime.value.garmentDataUrls],
 			    garmentFileNames: [...activeRuntime.value.garmentFileNames],
+			    backgroundDataUrls: [...activeRuntime.value.backgroundDataUrls],
+			    backgroundFileNames: [...activeRuntime.value.backgroundFileNames],
+			    modelDataUrls: [...activeRuntime.value.modelDataUrls],
+			    modelFileNames: [...activeRuntime.value.modelFileNames],
 			    garmentRefDataUrl: activeRuntime.value.garmentRefDataUrl,
 			    garmentRefMimeType: activeRuntime.value.garmentRefMimeType,
 			    lastPlan: activeRuntime.value.lastPlan ? safeClone(activeRuntime.value.lastPlan) : null,
@@ -772,6 +921,56 @@ async function onGarmentFileChange(e: Event) {
   const dataUrls = await Promise.all(limited.map((f) => fileToDataUrl(f)));
   runtime.garmentFileNames.push(...limited.map((f) => f.name || "garment"));
   runtime.garmentDataUrls.push(...dataUrls);
+
+  if (input) input.value = "";
+}
+
+async function onBackgroundFileChange(e: Event) {
+  const input = e.target as HTMLInputElement | null;
+  const files = Array.from(input?.files ?? []);
+  const runtime = activeRuntime.value;
+
+  if (!files.length) {
+    if (input) input.value = "";
+    return;
+  }
+
+  const MAX = 4;
+  const remaining = Math.max(0, MAX - runtime.backgroundDataUrls.length);
+  if (!remaining) {
+    if (input) input.value = "";
+    return;
+  }
+
+  const limited = files.slice(0, remaining);
+  const dataUrls = await Promise.all(limited.map((f) => fileToDataUrl(f)));
+  runtime.backgroundFileNames.push(...limited.map((f) => f.name || "background"));
+  runtime.backgroundDataUrls.push(...dataUrls);
+
+  if (input) input.value = "";
+}
+
+async function onModelFileChange(e: Event) {
+  const input = e.target as HTMLInputElement | null;
+  const files = Array.from(input?.files ?? []);
+  const runtime = activeRuntime.value;
+
+  if (!files.length) {
+    if (input) input.value = "";
+    return;
+  }
+
+  const MAX = 4;
+  const remaining = Math.max(0, MAX - runtime.modelDataUrls.length);
+  if (!remaining) {
+    if (input) input.value = "";
+    return;
+  }
+
+  const limited = files.slice(0, remaining);
+  const dataUrls = await Promise.all(limited.map((f) => fileToDataUrl(f)));
+  runtime.modelFileNames.push(...limited.map((f) => f.name || "model"));
+  runtime.modelDataUrls.push(...dataUrls);
 
   if (input) input.value = "";
 }
@@ -1047,6 +1246,26 @@ async function saveAllImages() {
   }
 }
 
+async function savePrintedGarment() {
+  const runtime = activeRuntime.value;
+  if (!runtime.prints.outputDataUrl) {
+    runtime.prints.error = "Generate the printed garment first.";
+    return;
+  }
+  try {
+    const ts = Date.now();
+    await saveImageToLibrary({
+      dataUrl: runtime.prints.outputDataUrl,
+      mimeType: runtime.prints.outputMimeType,
+      title: `Printed garment — ${activeStoryboard.value.title}`,
+      kind: "prints",
+      fileName: `printed-garment-${ts}.${mimeToExtension(runtime.prints.outputMimeType)}`,
+    });
+  } catch (err: any) {
+    runtime.prints.error = err?.message || String(err);
+  }
+}
+
 async function generateMultipleAngles() {
   const runtime = activeRuntime.value;
   if (isGenerating.value) return;
@@ -1083,14 +1302,24 @@ async function generateMultipleAngles() {
     const garmentRefInline = dataUrlToInlineImage(runtime.garmentRefDataUrl);
     const mainInline = dataUrlToInlineImage(runtime.resultDataUrl);
     const garmentAnglesInline = runtime.garmentDataUrls.map((src) => dataUrlToInlineImage(src));
+    const modelRefInline = runtime.modelDataUrls[0] ? dataUrlToInlineImage(runtime.modelDataUrls[0]) : null;
+    const backgroundRefInline = runtime.backgroundDataUrls[0]
+      ? dataUrlToInlineImage(runtime.backgroundDataUrls[0])
+      : null;
 
-    const referenceImages = [garmentRefInline, ...garmentAnglesInline, mainInline];
+    const referenceImages = [
+      garmentRefInline,
+      ...garmentAnglesInline,
+      mainInline,
+      ...(modelRefInline ? [modelRefInline] : []),
+      ...(backgroundRefInline ? [backgroundRefInline] : []),
+    ];
     const promptBase = {
       plan: runtime.lastPlan,
       finalPrompt: runtime.lastFinalPrompt || "",
       garmentAngleCount: garmentAnglesInline.length,
-      hasModelReference: false,
-      hasBackgroundReference: false,
+      hasModelReference: Boolean(modelRefInline),
+      hasBackgroundReference: Boolean(backgroundRefInline),
     };
 
     const sidePrompt = buildMultiAnglePrompt({ ...promptBase, angle: "side" });
@@ -1302,6 +1531,10 @@ async function onGenerateLook() {
 
     const styleKeywords = styleKeywordsFinal.value ? parseLocalTags(styleKeywordsFinal.value) : [];
     const accessories = activeConfig.value.accessories.trim() ? parseLocalTags(activeConfig.value.accessories) : [];
+    const modelRefDataUrl = runtime.modelDataUrls[0] || null;
+    const backgroundRefDataUrl = runtime.backgroundDataUrls[0] || null;
+    const hasModelReference = Boolean(modelRefDataUrl);
+    const hasBackgroundReference = Boolean(backgroundRefDataUrl);
 
     const garmentImages = runtime.garmentDataUrls.map((src) => dataUrlToInlineImage(src));
     const timings: Record<string, number> = {};
@@ -1356,8 +1589,8 @@ async function onGenerateLook() {
       plan,
       background: null,
       chosenModel: null,
-      hasBackgroundReference: false,
-      hasModelReference: false,
+      hasBackgroundReference,
+      hasModelReference,
       timeoutMs: 120000,
     });
     timings.final_prompt = Math.round(performance.now() - tFinalPrompt0);
@@ -1385,18 +1618,23 @@ async function onGenerateLook() {
     const compositePrompt = buildCompositePrompt({
       plan,
       finalPrompt: finalPromptRes.prompt,
-      hasModelReference: false,
-      hasBackgroundReference: false,
+      hasModelReference,
+      hasBackgroundReference,
     });
     debug.composite_prompt = compositePrompt;
     debug.negative_prompt = plan.negative_prompt;
 
     const tComposite0 = performance.now();
+    const compositeImages = [
+      { mimeType: garmentRef.mimeType, data: base64ToBytes(garmentRef.imageBase64) },
+      ...(modelRefDataUrl ? [dataUrlToInlineImage(modelRefDataUrl)] : []),
+      ...(backgroundRefDataUrl ? [dataUrlToInlineImage(backgroundRefDataUrl)] : []),
+    ];
     const composite = await generateImage({
       apiKey: apiKeyValue,
       model: "gemini-3-pro-image-preview",
       promptText: compositePrompt,
-      images: [{ mimeType: garmentRef.mimeType, data: base64ToBytes(garmentRef.imageBase64) }],
+      images: compositeImages,
       aspectRatio: "3:4",
       width: 1080,
       height: 1440,
@@ -1490,21 +1728,31 @@ async function retryMainImage(retryComment: string) {
       footwear: footwearFinal.value || null,
     });
 
+    const modelRefDataUrl = runtime.modelDataUrls[0] || null;
+    const backgroundRefDataUrl = runtime.backgroundDataUrls[0] || null;
+    const hasModelReference = Boolean(modelRefDataUrl);
+    const hasBackgroundReference = Boolean(backgroundRefDataUrl);
+
     const compositePrompt = buildRetryCompositePrompt({
       plan,
       finalPrompt: runtime.lastFinalPrompt,
-      hasModelReference: false,
-      hasBackgroundReference: false,
+      hasModelReference,
+      hasBackgroundReference,
       retryComment: retryComment || "",
     });
 
     const t0 = performance.now();
     const garmentRefInline = dataUrlToInlineImage(runtime.garmentRefDataUrl);
+    const compositeImages = [
+      garmentRefInline,
+      ...(modelRefDataUrl ? [dataUrlToInlineImage(modelRefDataUrl)] : []),
+      ...(backgroundRefDataUrl ? [dataUrlToInlineImage(backgroundRefDataUrl)] : []),
+    ];
     const composite = await generateImage({
       apiKey: apiKeyValue,
       model: "gemini-3-pro-image-preview",
       promptText: compositePrompt,
-      images: [garmentRefInline],
+      images: compositeImages,
       aspectRatio: "3:4",
       width: 1080,
       height: 1440,

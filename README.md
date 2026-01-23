@@ -1,4 +1,4 @@
-# Ecommerce Scene Generator (Client-Side)
+# Fashion Image Generator (Client-Side)
 
 Vue 3 app that runs fully in the browser and calls Gemini directly with a user-provided API key. Generated images can be saved locally in IndexedDB.
 

@@ -163,6 +163,48 @@
               placeholder="Optional: add details (lighting, location, props)"
             />
           </div>
+          <div v-if="runtime.backgroundDataUrls.length" style="margin-top: 14px">
+            <label>Background references</label>
+            <div class="preview previewAssets">
+              <div
+                v-for="(src, idx) in runtime.backgroundDataUrls"
+                :key="`${activeStoryboardId}-bg-ref-${idx}`"
+                class="previewItem"
+              >
+                <img :src="src" :alt="`Background reference ${idx + 1}`" draggable="false" />
+                <button
+                  type="button"
+                  class="previewActionButton"
+                  @click="$emit('open-image', src, 'Background reference', 'Background reference')"
+                  :aria-label="`Open background reference ${idx + 1}`"
+                  title="Open image"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M10 10 5 5" />
+                    <path d="M5 8V5H8" />
+                    <path d="M14 10 19 5" />
+                    <path d="M16 5h3v3" />
+                    <path d="M10 14 5 19" />
+                    <path d="M5 16v3h3" />
+                    <path d="M14 14 19 19" />
+                    <path d="M16 19h3v-3" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="removePreviewButton"
+                  @click="removeBackgroundImage(idx)"
+                  :aria-label="`Remove background image ${idx + 1}`"
+                  title="Remove image"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M18 6 6 18" />
+                    <path d="M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="parameter-section">
@@ -230,6 +272,48 @@
               placeholder="Optional: add your own notes (hair/makeup/jewelry, vibe)"
             />
           </div>
+          <div v-if="runtime.modelDataUrls.length" style="margin-top: 14px">
+            <label>Model references</label>
+            <div class="preview previewAssets">
+              <div
+                v-for="(src, idx) in runtime.modelDataUrls"
+                :key="`${activeStoryboardId}-model-ref-${idx}`"
+                class="previewItem"
+              >
+                <img :src="src" :alt="`Model reference ${idx + 1}`" draggable="false" />
+                <button
+                  type="button"
+                  class="previewActionButton"
+                  @click="$emit('open-image', src, 'Model reference', 'Model reference')"
+                  :aria-label="`Open model reference ${idx + 1}`"
+                  title="Open image"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M10 10 5 5" />
+                    <path d="M5 8V5H8" />
+                    <path d="M14 10 19 5" />
+                    <path d="M16 5h3v3" />
+                    <path d="M10 14 5 19" />
+                    <path d="M5 16v3h3" />
+                    <path d="M14 14 19 19" />
+                    <path d="M16 19h3v-3" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="removePreviewButton"
+                  @click="removeModelImage(idx)"
+                  :aria-label="`Remove model image ${idx + 1}`"
+                  title="Remove image"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M18 6 6 18" />
+                    <path d="M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="">
@@ -295,6 +379,8 @@ import {
 type RuntimeLite = {
   garmentDataUrls: string[];
   garmentFileNames: string[];
+  backgroundDataUrls: string[];
+  modelDataUrls: string[];
   generateError: string | null;
   chosenSummary: any;
   debugSummary: any;
@@ -307,7 +393,12 @@ defineProps<{
   isGenerating: boolean;
   onGarmentFileChange: (e: Event) => void;
   removeGarmentImage: (idx: number) => void;
+  removeBackgroundImage: (idx: number) => void;
+  removeModelImage: (idx: number) => void;
 }>();
 
-defineEmits<{ (e: "submit"): void }>();
+defineEmits<{
+  (e: "submit"): void;
+  (e: "open-image", src: string, title: string, alt?: string): void;
+}>();
 </script>
