@@ -4,7 +4,6 @@
       <div>
         <h1 class="title titleLarge">Fashion image Gen</h1>
       </div>
-      <ApiKeyInput v-model="geminiApiKey" />
     </div>
 
     <div class="tabRow">
@@ -128,7 +127,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
-import ApiKeyInput from "./components/ApiKeyInput.vue";
 import DeleteStoryboardModal from "./components/DeleteStoryboardModal.vue";
 import ImageModal from "./components/ImageModal.vue";
 import StoryboardLibrary from "./components/StoryboardLibrary.vue";
@@ -137,7 +135,7 @@ import StoryboardFormCards from "./components/StoryboardFormCards.vue";
 import StoryboardResultsPane from "./components/StoryboardResultsPane.vue";
 import PrintsTab from "./components/PrintsTab.vue";
 
-import { base64ToBytes, dataUrlToInlineImage, generateImage } from "./lib/gemini";
+import { apiPost } from "./lib/api";
 import {
   footwearPresetKeywordsByValue,
   footwearPresetLabelByValue,
@@ -155,18 +153,7 @@ import {
   saveStoryboardsToLocalStorage,
   type StoryboardRecord,
 } from "./lib/storyboards";
-import {
-  applyFreeformOverrides,
-  buildCompositePrompt,
-  buildPrintApplicationPrompt,
-  buildGarmentReferencePrompt,
-  buildRetryCompositePrompt,
-  buildMultiAnglePrompt,
-  computeTimingsMs,
-  generateFinalPrompt,
-  planLookFromGarment,
-  type LookPlan,
-} from "./lib/pipeline";
+import { type LookPlan } from "./lib/pipeline";
 
 const GENERATION_STEPS = [
   "Getting all the configurations",
@@ -190,6 +177,17 @@ function formatDurationMs(ms: number | null | undefined): string {
   const wholeMinutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.round(seconds - wholeMinutes * 60);
   return `${wholeMinutes}m ${remainingSeconds}s`;
+}
+
+function computeTimingsMs(timings: Record<string, number>): {
+  textLlmMs: number;
+  imageGenMs: number;
+  totalMs: number;
+} {
+  const textLlmMs = (timings.plan ?? 0) + (timings.final_prompt ?? 0);
+  const imageGenMs = (timings.garment_reference ?? 0) + (timings.composite ?? 0);
+  const totalMs = textLlmMs + imageGenMs;
+  return { textLlmMs, imageGenMs, totalMs };
 }
 
 function combinePresetAndCustom(opts: { presetText: string; customText: string; joiner?: string }): string {
@@ -222,16 +220,6 @@ watch(
   activeTab,
   (value) => {
     localStorage.setItem(ACTIVE_TAB_KEY, value);
-  },
-  { flush: "post" },
-);
-
-const geminiApiKey = ref(localStorage.getItem("gemini_api_key") || "");
-watch(
-  geminiApiKey,
-  (value) => {
-    const trimmed = (value || "").trim();
-    localStorage.setItem("gemini_api_key", trimmed);
   },
   { flush: "post" },
 );
@@ -696,12 +684,6 @@ async function generatePrintedGarment(retryComment?: string) {
   const runtime = activeRuntime.value;
   runtime.prints.error = null;
 
-  const apiKey = geminiApiKey.value.trim();
-  if (!apiKey) {
-    runtime.prints.error = "Please paste your API key (BYO key).";
-    return;
-  }
-
   if (!runtime.prints.baseGarmentDataUrl) {
     runtime.prints.error = "Please upload a white garment photo.";
     return;
@@ -726,31 +708,22 @@ async function generatePrintedGarment(retryComment?: string) {
   runtime.prints.outputMimeType = null;
   runtime.prints.timingsMs = null;
 
-	  try {
-	    const baseInline = dataUrlToInlineImage(runtime.prints.baseGarmentDataUrl);
-	    const images =
-	      printInputKind === "color"
-	        ? [baseInline, dataUrlToInlineImage(createColorSwatchDataUrl(printColorHex!))]
-	        : [baseInline, dataUrlToInlineImage(runtime.prints.printDesignDataUrl!)];
-
-	    const prompt = buildPrintApplicationPrompt({
-	      additionalPrompt: activeConfig.value.printAdditionalPrompt || "",
-	      ...(printColorHex ? { colorHex: printColorHex } : {}),
+  try {
+    const printDesignDataUrl =
+      printInputKind === "color"
+        ? createColorSwatchDataUrl(printColorHex!)
+        : runtime.prints.printDesignDataUrl!;
+    const res = await apiPost("/api/prints/generate", {
+      baseGarmentDataUrl: runtime.prints.baseGarmentDataUrl,
+      printDesignDataUrl,
+      printColorHex: printColorHex || null,
+      additionalPrompt: activeConfig.value.printAdditionalPrompt || "",
       ...(typeof retryComment === "string" ? { retryComment } : {}),
     });
 
-    const t0 = performance.now();
-	    const out = await generateImage({
-	      apiKey,
-	      model: "gemini-3-pro-image-preview",
-	      promptText: prompt,
-	      images,
-	      timeoutMs: 180_000,
-	    });
-    runtime.prints.timingsMs = Math.round(performance.now() - t0);
-
-    runtime.prints.outputMimeType = out.mimeType;
-    runtime.prints.outputDataUrl = `data:${out.mimeType};base64,${out.imageBase64}`;
+    runtime.prints.outputMimeType = res?.output?.mimeType ?? null;
+    runtime.prints.outputDataUrl = res?.output?.url ?? null;
+    runtime.prints.timingsMs = typeof res?.timingsMs === "number" ? res.timingsMs : null;
   } catch (err: any) {
     runtime.prints.error = err?.message || String(err);
   } finally {
@@ -831,11 +804,6 @@ async function generateMultipleAngles() {
 
   runtime.angles.error = null;
 
-  const apiKey = geminiApiKey.value.trim();
-  if (!apiKey) {
-    runtime.angles.error = "Please paste your API key (BYO key).";
-    return;
-  }
   if (!runtime.resultDataUrl) {
     runtime.angles.error = "Generate the main image first.";
     return;
@@ -857,64 +825,21 @@ async function generateMultipleAngles() {
   runtime.angles.timingsMs = null;
 
   try {
-    const garmentRefInline = dataUrlToInlineImage(runtime.garmentRefDataUrl);
-    const garmentAnglesInline = runtime.garmentDataUrls.map((src) => dataUrlToInlineImage(src));
-    const mainInline = dataUrlToInlineImage(runtime.resultDataUrl);
-
-    const referenceImages = [garmentRefInline, ...garmentAnglesInline, mainInline];
-
-    const promptBase = {
+    const res = await apiPost("/api/looks/angles", {
+      garmentDataUrls: runtime.garmentDataUrls,
+      garmentRefUrl: runtime.garmentRefDataUrl,
+      mainImageUrl: runtime.resultDataUrl,
       plan: runtime.lastPlan,
       finalPrompt: runtime.lastFinalPrompt || "",
-      garmentAngleCount: garmentAnglesInline.length,
       hasModelReference: false,
       hasBackgroundReference: false,
-    } as const;
+    });
 
-    const sidePrompt = buildMultiAnglePrompt({ ...promptBase, angle: "side" });
-    const backPrompt = buildMultiAnglePrompt({ ...promptBase, angle: "back" });
-
-    const t0 = performance.now();
-    const [sideRes, backRes] = await Promise.all([
-      (async () => {
-        const t = performance.now();
-	        const res = await generateImage({
-	          apiKey,
-	          model: "gemini-3-pro-image-preview",
-	          promptText: sidePrompt,
-	          images: referenceImages,
-	          aspectRatio: "3:4",
-	          width: 1080,
-	          height: 1440,
-	          timeoutMs: 180_000,
-	        });
-        return { res, ms: Math.round(performance.now() - t) };
-      })(),
-      (async () => {
-        const t = performance.now();
-	        const res = await generateImage({
-	          apiKey,
-	          model: "gemini-3-pro-image-preview",
-	          promptText: backPrompt,
-	          images: referenceImages,
-	          aspectRatio: "3:4",
-	          width: 1080,
-	          height: 1440,
-	          timeoutMs: 180_000,
-	        });
-        return { res, ms: Math.round(performance.now() - t) };
-      })(),
-    ]);
-
-    runtime.angles.sideMimeType = sideRes.res.mimeType;
-    runtime.angles.sideDataUrl = `data:${sideRes.res.mimeType};base64,${sideRes.res.imageBase64}`;
-    runtime.angles.backMimeType = backRes.res.mimeType;
-    runtime.angles.backDataUrl = `data:${backRes.res.mimeType};base64,${backRes.res.imageBase64}`;
-    runtime.angles.timingsMs = {
-      side: sideRes.ms,
-      back: backRes.ms,
-      total: Math.round(performance.now() - t0),
-    };
+    runtime.angles.sideMimeType = res?.side?.mimeType ?? null;
+    runtime.angles.sideDataUrl = res?.side?.url ?? null;
+    runtime.angles.backMimeType = res?.back?.mimeType ?? null;
+    runtime.angles.backDataUrl = res?.back?.url ?? null;
+    runtime.angles.timingsMs = res?.timingsMs ?? null;
   } catch (err: any) {
     runtime.angles.error = err?.message || String(err);
   } finally {
@@ -1048,178 +973,47 @@ async function onGenerateLook() {
   runtime.resultMimeType = null;
   runtime.resultTimingsMs = null;
 
-	  if (!geminiApiKey.value.trim()) {
-	    runtime.generateError = "Please paste your API key (BYO key).";
-	    return;
-	  }
-		    if (!runtime.garmentDataUrls.length) {
-		      runtime.generateError = "Please select garment photos.";
-		      return;
-		    }
+  if (!runtime.garmentDataUrls.length) {
+    runtime.generateError = "Please select garment photos.";
+    return;
+  }
 
 	  isGenerating.value = true;
 	  generationStepIndex.value = 0;
 	  startGenerationTimer();
 
-  const timings: Record<string, number> = {};
-  const debug: any = {};
-  let planError: string | null = null;
-
   try {
-    generationStepIndex.value = 0;
-
-	    const garmentDataUrls = runtime.garmentDataUrls;
-	    if (!garmentDataUrls.length) {
-	      runtime.generateError = "Please select garment photos.";
-	      return;
-	    }
-	    const garmentInlines = garmentDataUrls.map((src) => dataUrlToInlineImage(src));
-
-    const availableThemes: string[] = [];
-    const availableEthnicities: string[] = [];
-
     generationStepIndex.value = 1;
 
-			    const userOverrides = {
-			      occasion: occasionFinal.value || null,
-			      color_scheme: activeConfig.value.colorScheme.trim() || null,
-			      background_theme: backgroundThemeFinal.value || null,
-			      footwear: footwearFinal.value || null,
-			      model_ethnicity: modelEthnicityFinal.value || null,
-            model_pose: modelPoseFinal.value || null,
-			      model_styling_notes: modelStylingNotesFinal.value || null,
-			    };
-
-    let plan: LookPlan;
-    const tPlan0 = performance.now();
-    try {
-	      const planRes = await planLookFromGarment({
-	        apiKey: geminiApiKey.value,
-	        model: "gemini-3-flash-preview",
-	        garmentImages: garmentInlines,
-	        availableBackgroundThemes: availableThemes,
-	        availableModelEthnicities: availableEthnicities,
-	        userOverrides,
-	        timeoutMs: 120_000,
-	      });
-      plan = planRes.plan;
-      debug.plan_raw_text = planRes.rawText;
-      debug.plan_raw_json = planRes.rawJson;
-    } catch (err: any) {
-      planError = err?.message || String(err);
-      const ov = userOverrides;
-		      plan = {
-		        occasion: ov.occasion || "casual",
-		        color_scheme: ov.color_scheme || "neutral",
-		        print_style: "as-is",
-		        style_keywords: [],
-		        background_theme: ov.background_theme || ov.occasion || "casual",
-		        footwear: ov.footwear || "",
-		        accessories: [],
-		        negative_prompt:
-		          "blurry, low quality, incorrect garment, altered design, wrong print, extra limbs, deformed hands, text overlay, watermark",
-		        model_ethnicity: ov.model_ethnicity || "",
-		        model_pose: ov.model_pose || "",
-		        model_styling_notes: ov.model_styling_notes || "",
-		      };
-		    }
-    timings.plan = Math.round(performance.now() - tPlan0);
-
-	    plan = applyFreeformOverrides(plan, {
-	      styleKeywords: styleKeywordsFinal.value ? parseLocalTags(styleKeywordsFinal.value) : undefined,
-	      accessories: activeConfig.value.accessories.trim() ? parseLocalTags(activeConfig.value.accessories) : undefined,
-	      footwear: footwearFinal.value || null,
-	    });
-
-	    runtime.lastPlan = safeClone(plan);
-
-    const tFinalPrompt0 = performance.now();
-    const finalPromptRes = await generateFinalPrompt({
-      apiKey: geminiApiKey.value,
-      model: "gemini-3-flash-preview",
-      plan,
-      background: null,
-      chosenModel: null,
-      hasBackgroundReference: false,
-      hasModelReference: false,
-      timeoutMs: 120_000,
-    });
-	    timings.final_prompt = Math.round(performance.now() - tFinalPrompt0);
-	    debug.final_prompt = finalPromptRes.prompt;
-	    runtime.lastFinalPrompt = finalPromptRes.prompt;
-
-    generationStepIndex.value = 2;
-
-	    const garmentRefPrompt = buildGarmentReferencePrompt();
-	    const tGarment0 = performance.now();
-		    const garmentRef = await generateImage({
-		      apiKey: geminiApiKey.value,
-		      model: "gemini-3-pro-image-preview",
-		      promptText: garmentRefPrompt,
-		      images: garmentInlines,
-		      aspectRatio: "3:4",
-		      width: 1080,
-		      height: 1440,
-		      timeoutMs: 180_000,
-		    });
-	    timings.garment_reference = Math.round(performance.now() - tGarment0);
-	    runtime.garmentRefMimeType = garmentRef.mimeType;
-	    runtime.garmentRefDataUrl = `data:${garmentRef.mimeType};base64,${garmentRef.imageBase64}`;
-
-	    const garmentRefBytes = base64ToBytes(garmentRef.imageBase64);
-
-    const compositeImages: Array<{ mimeType: string; data: Uint8Array }> = [
-      { mimeType: garmentRef.mimeType, data: garmentRefBytes },
-    ];
-
-    const compositePrompt = buildCompositePrompt({
-      plan,
-      finalPrompt: finalPromptRes.prompt,
-      hasModelReference: false,
-      hasBackgroundReference: false,
-    });
-    debug.composite_prompt = compositePrompt;
-    debug.negative_prompt = plan.negative_prompt;
-
-    generationStepIndex.value = 3;
-    const tComposite0 = performance.now();
-	    const composite = await generateImage({
-	      apiKey: geminiApiKey.value,
-	      model: "gemini-3-pro-image-preview",
-	      promptText: compositePrompt,
-	      images: compositeImages,
-	      aspectRatio: "3:4",
-	      width: 1080,
-	      height: 1440,
-	      timeoutMs: 180_000,
-	    });
-    timings.composite = Math.round(performance.now() - tComposite0);
-
-    runtime.resultMimeType = composite.mimeType;
-    runtime.resultDataUrl = `data:${composite.mimeType};base64,${composite.imageBase64}`;
-
-    runtime.resultTimingsMs = {
-      ...timings,
-      api_total: Object.values(timings).reduce((a, b) => a + b, 0),
+    const userOverrides = {
+      occasion: occasionFinal.value || null,
+      color_scheme: activeConfig.value.colorScheme.trim() || null,
+      background_theme: backgroundThemeFinal.value || null,
+      footwear: footwearFinal.value || null,
+      model_ethnicity: modelEthnicityFinal.value || null,
+      model_pose: modelPoseFinal.value || null,
+      model_styling_notes: modelStylingNotesFinal.value || null,
     };
 
-		    runtime.chosenSummary = {
-		      occasion: plan.occasion,
-		      color_scheme: plan.color_scheme,
-		      print_style: plan.print_style,
-		      style_keywords: plan.style_keywords,
-		      footwear: plan.footwear,
-		      accessories: plan.accessories,
-		      background_theme: plan.background_theme,
-		      model_ethnicity: plan.model_ethnicity,
-		      model_pose: plan.model_pose,
-		    };
+    const res = await apiPost("/api/looks/generate", {
+      garmentDataUrls: runtime.garmentDataUrls,
+      overrides: userOverrides,
+      styleKeywords: styleKeywordsFinal.value ? parseLocalTags(styleKeywordsFinal.value) : [],
+      accessories: activeConfig.value.accessories.trim() ? parseLocalTags(activeConfig.value.accessories) : [],
+      footwear: footwearFinal.value || null,
+    });
 
-	    runtime.debugSummary = {
-	      timings_ms: runtime.resultTimingsMs,
-	      plan_error: planError,
-	      ...debug,
-	    };
+    generationStepIndex.value = 3;
+
+    runtime.lastPlan = res?.plan ? safeClone(res.plan) : null;
+    runtime.lastFinalPrompt = res?.finalPrompt ?? null;
+    runtime.garmentRefMimeType = res?.garmentRef?.mimeType ?? null;
+    runtime.garmentRefDataUrl = res?.garmentRef?.url ?? null;
+    runtime.resultMimeType = res?.result?.mimeType ?? null;
+    runtime.resultDataUrl = res?.result?.url ?? null;
+    runtime.resultTimingsMs = res?.timingsMs ?? null;
+    runtime.chosenSummary = res?.chosenSummary ?? null;
+    runtime.debugSummary = res?.debugSummary ?? null;
   } catch (err: any) {
     runtime.generateError = err?.message || String(err);
   } finally {
@@ -1233,10 +1027,6 @@ async function retryMainImage(retryComment: string) {
   const runtime = activeRuntime.value;
   runtime.generateError = null;
 
-  if (!geminiApiKey.value.trim()) {
-    runtime.generateError = "Please paste your API key (BYO key).";
-    return;
-  }
   if (!runtime.resultDataUrl || !runtime.garmentRefDataUrl || !runtime.lastPlan || !runtime.lastFinalPrompt) {
     runtime.generateError = "Generate the main image first, then you can retry.";
     return;
@@ -1246,94 +1036,35 @@ async function retryMainImage(retryComment: string) {
   generationStepIndex.value = 3;
   startGenerationTimer();
 
-  const timings: Record<string, number> = {};
-  const debug: any = { retry_comment: (retryComment || "").trim() };
-
   try {
-    const basePlan = safeClone(runtime.lastPlan);
-    let plan: LookPlan = basePlan;
+    const overrides = {
+      occasion: occasionFinal.value || null,
+      color_scheme: activeConfig.value.colorScheme.trim() || null,
+      background_theme: backgroundThemeFinal.value || null,
+      footwear: footwearFinal.value || null,
+      model_ethnicity: modelEthnicityFinal.value || null,
+      model_pose: modelPoseFinal.value || null,
+      model_styling_notes: modelStylingNotesFinal.value || null,
+    };
 
-    const occasionOverride = (occasionFinal.value || "").trim();
-    if (occasionOverride) plan.occasion = occasionOverride;
-
-    const colorOverride = activeConfig.value.colorScheme.trim();
-    if (colorOverride) plan.color_scheme = colorOverride;
-
-    const backgroundOverride = (backgroundThemeFinal.value || "").trim();
-    if (backgroundOverride) plan.background_theme = backgroundOverride;
-
-    const footwearOverride = (footwearFinal.value || "").trim();
-    if (footwearOverride) plan.footwear = footwearOverride;
-
-    const modelOverride = (modelEthnicityFinal.value || "").trim();
-    if (modelOverride) plan.model_ethnicity = modelOverride;
-
-    const poseOverride = (modelPoseFinal.value || "").trim();
-    if (poseOverride) plan.model_pose = poseOverride;
-
-    const stylingNotesOverride = (modelStylingNotesFinal.value || "").trim();
-    if (stylingNotesOverride) plan.model_styling_notes = stylingNotesOverride;
-
-    plan = applyFreeformOverrides(plan, {
-      styleKeywords: styleKeywordsFinal.value ? parseLocalTags(styleKeywordsFinal.value) : undefined,
-      accessories: activeConfig.value.accessories.trim() ? parseLocalTags(activeConfig.value.accessories) : undefined,
-      footwear: footwearOverride || null,
-    });
-
-    runtime.lastPlan = safeClone(plan);
-
-    const compositePrompt = buildRetryCompositePrompt({
-      plan,
-      finalPrompt: runtime.lastFinalPrompt || "",
-      hasModelReference: false,
-      hasBackgroundReference: false,
+    const res = await apiPost("/api/looks/retry", {
+      plan: runtime.lastPlan,
+      finalPrompt: runtime.lastFinalPrompt,
       retryComment,
+      garmentRefUrl: runtime.garmentRefDataUrl,
+      overrides,
+      styleKeywords: styleKeywordsFinal.value ? parseLocalTags(styleKeywordsFinal.value) : [],
+      accessories: activeConfig.value.accessories.trim() ? parseLocalTags(activeConfig.value.accessories) : [],
+      footwear: footwearFinal.value || null,
     });
-    debug.composite_prompt = compositePrompt;
-    debug.final_prompt = runtime.lastFinalPrompt;
-    debug.negative_prompt = plan.negative_prompt;
 
-    generationStepIndex.value = 3;
-    const t0 = performance.now();
-    const garmentRefInline = dataUrlToInlineImage(runtime.garmentRefDataUrl);
-    const composite = await generateImage({
-      apiKey: geminiApiKey.value,
-      model: "gemini-3-pro-image-preview",
-      promptText: compositePrompt,
-      images: [garmentRefInline],
-      aspectRatio: "3:4",
-      width: 1080,
-      height: 1440,
-      timeoutMs: 180_000,
-    });
-    timings.composite = Math.round(performance.now() - t0);
-
-    runtime.resultMimeType = composite.mimeType;
-    runtime.resultDataUrl = `data:${composite.mimeType};base64,${composite.imageBase64}`;
-
+    runtime.lastPlan = res?.plan ? safeClone(res.plan) : runtime.lastPlan;
+    runtime.resultMimeType = res?.result?.mimeType ?? null;
+    runtime.resultDataUrl = res?.result?.url ?? null;
     runtime.angles = createDefaultAnglesRuntime();
-
-    runtime.resultTimingsMs = {
-      ...timings,
-      api_total: Object.values(timings).reduce((a, b) => a + b, 0),
-    };
-
-    runtime.chosenSummary = {
-      occasion: plan.occasion,
-      color_scheme: plan.color_scheme,
-      print_style: plan.print_style,
-      style_keywords: plan.style_keywords,
-      footwear: plan.footwear,
-      accessories: plan.accessories,
-      background_theme: plan.background_theme,
-      model_ethnicity: plan.model_ethnicity,
-      model_pose: plan.model_pose,
-    };
-
-    runtime.debugSummary = {
-      timings_ms: runtime.resultTimingsMs,
-      ...debug,
-    };
+    runtime.resultTimingsMs = res?.timingsMs ?? null;
+    runtime.chosenSummary = res?.chosenSummary ?? null;
+    runtime.debugSummary = res?.debugSummary ?? null;
   } catch (err: any) {
     runtime.generateError = err?.message || String(err);
   } finally {

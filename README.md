@@ -1,36 +1,49 @@
-# Ecommerce Scene Generator (Client-Side)
+# Ecommerce Scene Generator (Frontend + Backend)
 
-A 100% client-side Vue 3 (Vite) app that generates photorealistic fashion ecommerce scenes using the Gemini API.
+Vue 3 frontend with an Express backend that calls Gemini and stores generated images in Azure Blob Storage.
 
-## Run locally
+## Local development
+
+Frontend:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open `http://localhost:5173/ecommerce-scene-generator/` (adjust if you change `base` in `vite.config.ts`), then paste your **Gemini API key** in the UI. The key is stored locally in your browser (`localStorage`).
-
-## Storyboards (idea management)
-
-- The app uses storyboards to store creative settings (occasion, background theme, accessories, etc.) in `localStorage`.
-- Each storyboard stores its settings (occasion, background theme, accessories, etc.) in `localStorage`.
-- Create / rename / duplicate / delete storyboards from the UI.
-
-## Tabs
-
-- **Prints (first tab):** upload a white garment photo + a print/design image (pattern or solid color swatch), optionally add a prompt, then click **Generate printed garment**.
-- **Generate (second tab):** pick a storyboard and generate the final photorealistic ecommerce scene.
-
-## Build & deploy (GitHub Pages)
+Backend:
 
 ```bash
-npm run build
+npm --prefix server install
+cp server/.env.example server/.env
+npm run dev:server
 ```
 
-Static output is written to `docs/` (configured in `vite.config.ts`). For GitHub Pages, set the Pages source to `docs/` and ensure `base` in `vite.config.ts` matches your repo name (currently `/ecommerce-scene-generator/`).
+Open `http://localhost:5173`. The frontend proxies `/api` to `http://localhost:3001` in dev.
 
-## Notes / security
+## Environment variables (backend)
 
-- This is **BYO key**: all Gemini calls happen from the browser using the key you provide.
-- If you want to avoid exposing keys to clients, use a backend/serverless proxy instead of GitHub Pages.
+Set these in `server/.env` (and in Azure App Service):
+
+- `GEMINI_API_KEY`: your Gemini API key.
+- `AZURE_STORAGE_CONNECTION_STRING`: connection string for the storage account.
+- `AZURE_STORAGE_CONTAINER`: container name (default: `images`).
+- `CORS_ORIGIN`: comma-separated list of allowed origins (leave empty to allow all).
+
+## Azure deployment
+
+Backend (App Service):
+
+- Deploy the `server/` directory.
+- Set `PORT`, `GEMINI_API_KEY`, `AZURE_STORAGE_CONNECTION_STRING`, `AZURE_STORAGE_CONTAINER`, and `CORS_ORIGIN` in App Settings.
+- Ensure the Blob container has public read access (level "blob").
+
+Frontend (Azure Static Web Apps or App Service static hosting):
+
+- Build output is `dist/`.
+- Set `VITE_API_BASE_URL` to your backend URL.
+
+## Storyboards
+
+- Storyboards and settings are stored in the browser using `localStorage`.
+- Create, rename, duplicate, and delete storyboards from the UI.
