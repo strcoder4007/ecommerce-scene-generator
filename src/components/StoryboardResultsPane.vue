@@ -1,5 +1,5 @@
 <template>
-  <div class="card result">
+  <div class="result">
     <FieldLabel
       label="Generated result"
       info="Your generated ecommerce scene will appear here. For best results, start with Auto settings."
@@ -75,6 +75,27 @@
             <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
           </svg>&nbsp;&nbsp;Download
         </a>
+        <button
+          type="button"
+          class="btn btnGhost iconButton"
+          style="width: 100px"
+          @click="$emit('save-image')"
+          :disabled="isGenerating"
+          aria-label="Save generated image"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+          </svg>&nbsp;&nbsp;Save
+        </button>
         <button
           type="button"
           class="btnGhost iconButton"
@@ -173,14 +194,17 @@
         >
           {{ runtime.angles.generating ? "Generating..." : "Generate Multiple Angles" }}
         </button>
-        <button
+        <div
           v-if="runtime.angles.sideDataUrl && runtime.angles.backDataUrl"
-          type="button"
-          class="btnPrimary"
-          @click="$emit('download-all')"
+          style="display: inline-flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;"
         >
-          Download all images
-        </button>
+          <button type="button" class="btnSecondary" @click="$emit('save-all')">
+            Save all images
+          </button>
+          <button type="button" class="btnPrimary" @click="$emit('download-all')">
+            Download all images
+          </button>
+        </div>
       </div>
 
       <div v-if="runtime.angles.timingsMs" class="muted" style="margin-top: 10px">
@@ -354,9 +378,11 @@ defineProps<{
 
 const emit = defineEmits<{
   (e: "open-image", src: string, title: string, alt?: string): void;
+  (e: "save-image"): void;
   (e: "retry", comment: string): void;
   (e: "generate-angles"): void;
   (e: "download-all"): void;
+  (e: "save-all"): void;
 }>();
 
 const retryOpen = ref(false);

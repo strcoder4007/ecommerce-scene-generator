@@ -1,6 +1,6 @@
 <template>
   <div class="storyboardLibrary">
-    <div class="card">
+    <div class="">
       <div class="sectionTitle" style="margin-top: 0">Inputs</div>
 
       <div class="row" style="margin-top: 10px">

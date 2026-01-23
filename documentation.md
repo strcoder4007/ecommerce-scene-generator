@@ -2,9 +2,10 @@ Automating the AI Fashion Design Workflow
 
 Repo Implementation Notes (Static / Client-Side)
 
-- The app is implemented as a 100% client-side Vue 3 dashboard (Vite). It builds to static HTML/CSS/JS in `docs/` for GitHub Pages.
+- The app is implemented as a 100% client-side Vue 3 dashboard (Vite). It builds to static HTML/CSS/JS in `dist/`.
 - The user provides their own Gemini API key in the UI (“BYO key”). The key is stored locally in the browser (localStorage) and used for direct Gemini API calls.
 - Designers can manage multiple “storyboards” (ideas). Each storyboard stores its settings (occasion, background theme, accessories, etc.) in localStorage.
+- Generated images can be saved locally in IndexedDB for quick recall under the “Saved images” page.
 - No backend is required for the static deployment path.
 
 Introduction: Modern fashion design increasingly uses AI for visualization. In the current manual pipeline, designers photograph a white dress prototype, then use a text-to-image model (e.g. Google’s Gemini “Nano Banana” Pro
@@ -112,6 +113,10 @@ Generate Button: Runs the AI pipeline. The UI shows a progress indicator as Nano
 Output Gallery: Displays the final generated images (with different angles). Any flagged issues are labeled. The designer can download approved images or click “Regenerate” on any that failed.
 
 Prompt History & Logs: An optional panel shows past prompts, seeds, and results for traceability and reproducibility.
+
+Saved Images Library: A dedicated page shows any images saved to IndexedDB for quick reuse and download.
+
+API Key Management: A simple page lets users paste and store their Gemini API key locally.
 
 Vue is chosen for its responsive UI capabilities. In the static version of this repo, the frontend calls the Gemini API directly using a user-provided key (no backend service).
 

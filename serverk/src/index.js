@@ -20,6 +20,14 @@ dotenv.config();
 
 const PORT = Number(process.env.PORT || 3001);
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
+const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || `http://localhost:${PORT}`)
+  .toString()
+  .trim()
+  .replace(/\/+$/, "");
+
+if (!process.env.PUBLIC_BASE_URL) {
+  process.env.PUBLIC_BASE_URL = PUBLIC_BASE_URL;
+}
 
 const app = express();
 app.use(express.json({ limit: "50mb" }));
@@ -31,6 +39,11 @@ const allowedOrigins = (process.env.CORS_ORIGIN || "")
 app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : "*" }));
 
 const storage = await createStorageClient();
+
+if (storage.backend === "local") {
+  const publicPath = storage.publicPath || "/uploads";
+  app.use(publicPath, express.static(storage.localDir));
+}
 
 function ensureGeminiKey() {
   if (!GEMINI_API_KEY) {

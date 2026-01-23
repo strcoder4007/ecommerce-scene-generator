@@ -4,7 +4,7 @@
       <aside class="sidebar">
         <div class="sidebarBrand">
           <div class="brandEyebrow">Studio</div>
-          <div class="brandTitle">Fashion image Gen</div>
+          <div class="brandTitle">Fashion Image Generator</div>
           <div class="brandSub">Ecommerce scene generator</div>
         </div>
         <nav class="sidebarNav" role="tablist" aria-label="Main sections">
@@ -14,7 +14,7 @@
             :aria-selected="activeTab === 'prints'"
             @click="activeTab = 'prints'"
           >
-            Prints
+            Add Prints
           </button>
           <button
             type="button"
@@ -22,7 +22,15 @@
             :aria-selected="activeTab === 'generate'"
             @click="activeTab = 'generate'"
           >
-            Generate
+            Generate Images
+          </button>
+          <button
+            type="button"
+            :class="activeTab === 'saved' ? 'navButton navButtonActive' : 'navButton'"
+            :aria-selected="activeTab === 'saved'"
+            @click="activeTab = 'saved'"
+          >
+            Saved images
           </button>
           <button
             type="button"
@@ -30,7 +38,15 @@
             :aria-selected="activeTab === 'assets'"
             @click="activeTab = 'assets'"
           >
-            Assets
+            Uploaded Assets
+          </button>
+          <button
+            type="button"
+            :class="activeTab === 'api' ? 'navButton navButtonActive' : 'navButton'"
+            :aria-selected="activeTab === 'api'"
+            @click="activeTab = 'api'"
+          >
+            API Key
           </button>
         </nav>
       </aside>
@@ -75,7 +91,7 @@
                 @open="openStoryboard"
               />
 
-              <div v-else class="card storyboardEditorCard">
+              <div v-else class="storyboardEditorCard">
                 <StoryboardEditorHeader
                   :title="activeStoryboard.title"
                   :updated-at="activeStoryboard.updatedAt"
@@ -114,9 +130,11 @@
                       :on-result-image-pointer-move="onResultImagePointerMove"
                       :on-result-image-pointer-leave="onResultImagePointerLeave"
                       @open-image="openImageModal"
+                      @save-image="saveMainImage"
                       @retry="retryMainImage"
                       @generate-angles="generateMultipleAngles"
                       @download-all="downloadAllImages"
+                      @save-all="saveAllImages"
                     />
                   </div>
                 </div>
@@ -124,8 +142,34 @@
             </div>
           </template>
 
+          <template v-else-if="activeTab === 'saved'">
+            <SavedImagesPane
+              :images="savedImages"
+              :format-timestamp="formatSavedTimestamp"
+              :mime-to-extension="mimeToExtension"
+              @open-image="openImageModal"
+            />
+          </template>
+
+          <template v-else-if="activeTab === 'api'">
+            <div class="card">
+              <div class="sectionTitle" style="margin-top: 0">API Key</div>
+              <div class="title" style="font-size: 18px; margin: 0">Connect API</div>
+              <div class="muted" style="margin-top: 6px">
+                Paste your Gemini API key. It is stored locally in your browser and used for all generation requests.
+              </div>
+              <div style="margin-top: 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <ApiKeyInput v-model="apiKey" />
+                <div class="badge" style="margin-left: auto;">
+                  <span>Status</span>
+                  <code>{{ apiKey ? "Configured" : "Missing" }}</code>
+                </div>
+              </div>
+            </div>
+          </template>
+
           <template v-else>
-            <div class="card assetsEmpty">
+            <div class="assetsEmpty">
               <div class="resultEmpty">
                 <div>
                   <div class="resultEmptyTitle">No assets yet</div>
@@ -159,13 +203,15 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import DeleteStoryboardModal from "./components/DeleteStoryboardModal.vue";
 import ImageModal from "./components/ImageModal.vue";
+import ApiKeyInput from "./components/ApiKeyInput.vue";
 import StoryboardLibrary from "./components/StoryboardLibrary.vue";
 import StoryboardEditorHeader from "./components/StoryboardEditorHeader.vue";
 import StoryboardFormCards from "./components/StoryboardFormCards.vue";
 import StoryboardResultsPane from "./components/StoryboardResultsPane.vue";
 import PrintsTab from "./components/PrintsTab.vue";
+import SavedImagesPane from "./components/SavedImagesPane.vue";
 
-import { apiPost } from "./lib/api";
+import { base64ToBytes, dataUrlToInlineImage, generateImage } from "./lib/gemini";
 import {
   footwearPresetKeywordsByValue,
   footwearPresetLabelByValue,
@@ -174,7 +220,8 @@ import {
   occasionPresetLabelByValue,
   stylePresetLabelByValue,
 } from "./lib/presets";
-import { fileToDataUrl, normalizeHexColor, nowIso, parseTags as parseLocalTags } from "./lib/utils";
+import { dataUrlToBlob, fileToDataUrl, normalizeHexColor, nowIso, parseTags as parseLocalTags } from "./lib/utils";
+import { listSavedImages, saveImageRecord, type SavedImageRecord } from "./lib/indexeddb";
 import {
   createStoryboardRecord,
   loadActiveStoryboardIdFromLocalStorage,
@@ -183,7 +230,17 @@ import {
   saveStoryboardsToLocalStorage,
   type StoryboardRecord,
 } from "./lib/storyboards";
-import { type LookPlan } from "./lib/pipeline";
+import {
+  applyFreeformOverrides,
+  buildCompositePrompt,
+  buildGarmentReferencePrompt,
+  buildMultiAnglePrompt,
+  buildPrintApplicationPrompt,
+  buildRetryCompositePrompt,
+  generateFinalPrompt,
+  planLookFromGarment,
+  type LookPlan,
+} from "./lib/pipeline";
 
 const GENERATION_STEPS = [
   "Getting all the configurations",
@@ -243,18 +300,48 @@ function createColorSwatchDataUrl(hexColor: string): string {
 const generateView = ref<"library" | "editor">("library");
 
 const ACTIVE_TAB_KEY = "esg_active_tab_v1";
-type AppTab = "prints" | "generate" | "assets";
+const API_KEY_STORAGE_KEY = "esg_api_key_v1";
+type AppTab = "prints" | "generate" | "assets" | "saved" | "api";
 const storedTab = localStorage.getItem(ACTIVE_TAB_KEY) as AppTab | null;
 const activeTab = ref<AppTab>(
-  storedTab === "prints" || storedTab === "generate" || storedTab === "assets" ? storedTab : "prints",
+  storedTab === "prints" ||
+    storedTab === "generate" ||
+    storedTab === "assets" ||
+    storedTab === "saved" ||
+    storedTab === "api"
+    ? storedTab
+    : "prints",
 );
 const activeTabLabel = computed(() =>
-  activeTab.value === "prints" ? "Prints" : activeTab.value === "assets" ? "Assets" : "Generate",
+  activeTab.value === "prints"
+    ? "Add Prints"
+    : activeTab.value === "assets"
+      ? "Uploaded Assets"
+      : activeTab.value === "saved"
+        ? "Saved images"
+        : activeTab.value === "api"
+          ? "Add API Key"
+          : "Generate Images",
 );
 watch(
   activeTab,
   (value) => {
     localStorage.setItem(ACTIVE_TAB_KEY, value);
+  },
+  { flush: "post" },
+);
+
+const storedApiKey = localStorage.getItem(API_KEY_STORAGE_KEY) || "";
+const apiKey = ref(storedApiKey);
+watch(
+  apiKey,
+  (value) => {
+    const trimmed = (value || "").trim();
+    if (trimmed) {
+      localStorage.setItem(API_KEY_STORAGE_KEY, trimmed);
+    } else {
+      localStorage.removeItem(API_KEY_STORAGE_KEY);
+    }
   },
   { flush: "post" },
 );
@@ -377,6 +464,25 @@ const deleteStoryboardModalOpen = ref(false);
 type ImageModalState = { src: string; title: string; alt: string };
 const imageModal = ref<ImageModalState | null>(null);
 
+type SavedImageView = SavedImageRecord & { url: string };
+const savedImages = ref<SavedImageView[]>([]);
+
+function toSavedImageView(record: SavedImageRecord): SavedImageView {
+  return { ...record, url: URL.createObjectURL(record.blob) };
+}
+
+function setSavedImages(records: SavedImageRecord[]) {
+  for (const img of savedImages.value) {
+    URL.revokeObjectURL(img.url);
+  }
+  savedImages.value = records.map((record) => toSavedImageView(record));
+}
+
+async function loadSavedImages() {
+  const records = await listSavedImages();
+  setSavedImages(records);
+}
+
 function openImageModal(src: string | null | undefined, title: string, alt?: string) {
   if (!src) return;
   imageModal.value = { src, title, alt: alt ?? title };
@@ -415,6 +521,21 @@ function formatStoryboardTimestamp(iso: string): string {
   const d = new Date(iso);
   if (!Number.isFinite(d.getTime())) return "";
   return d.toLocaleString(undefined, { month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function formatSavedTimestamp(ms: number): string {
+  const d = new Date(ms);
+  if (!Number.isFinite(d.getTime())) return "";
+  return d.toLocaleString(undefined, { month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function requireApiKey(setError?: (message: string) => void): string | null {
+  const key = (apiKey.value || "").trim();
+  if (key) return key;
+  if (setError) {
+    setError("Add your API key in the API Key tab to generate images.");
+  }
+  return null;
 }
 
 	function storyboardSubtitle(sb: StoryboardRecord): string {
@@ -719,6 +840,11 @@ async function generatePrintedGarment(retryComment?: string) {
   const runtime = activeRuntime.value;
   runtime.prints.error = null;
 
+  const apiKeyValue = requireApiKey((message) => {
+    runtime.prints.error = message;
+  });
+  if (!apiKeyValue) return;
+
   if (!runtime.prints.baseGarmentDataUrl) {
     runtime.prints.error = "Please upload a white garment photo.";
     return;
@@ -748,17 +874,27 @@ async function generatePrintedGarment(retryComment?: string) {
       printInputKind === "color"
         ? createColorSwatchDataUrl(printColorHex!)
         : runtime.prints.printDesignDataUrl!;
-    const res = await apiPost("/api/prints/generate", {
-      baseGarmentDataUrl: runtime.prints.baseGarmentDataUrl,
-      printDesignDataUrl,
-      printColorHex: printColorHex || null,
+    const baseInline = dataUrlToInlineImage(runtime.prints.baseGarmentDataUrl);
+    const printInline = dataUrlToInlineImage(printDesignDataUrl);
+    const prompt = buildPrintApplicationPrompt({
       additionalPrompt: activeConfig.value.printAdditionalPrompt || "",
       ...(typeof retryComment === "string" ? { retryComment } : {}),
+      ...(printColorHex ? { colorHex: printColorHex } : {}),
     });
 
-    runtime.prints.outputMimeType = res?.output?.mimeType ?? null;
-    runtime.prints.outputDataUrl = res?.output?.url ?? null;
-    runtime.prints.timingsMs = typeof res?.timingsMs === "number" ? res.timingsMs : null;
+    const t0 = performance.now();
+    const out = await generateImage({
+      apiKey: apiKeyValue,
+      model: "gemini-3-pro-image-preview",
+      promptText: prompt,
+      images: [baseInline, printInline],
+      timeoutMs: 180000,
+    });
+    const ms = Math.round(performance.now() - t0);
+
+    runtime.prints.outputMimeType = out.mimeType;
+    runtime.prints.outputDataUrl = `data:${out.mimeType};base64,${out.imageBase64}`;
+    runtime.prints.timingsMs = ms;
   } catch (err: any) {
     runtime.prints.error = err?.message || String(err);
   } finally {
@@ -794,6 +930,9 @@ onBeforeUnmount(() => {
   if (generationInterval) window.clearInterval(generationInterval);
   if (storyboardSaveTimer) window.clearTimeout(storyboardSaveTimer);
   window.removeEventListener("keydown", onGlobalKeyDown);
+  for (const img of savedImages.value) {
+    URL.revokeObjectURL(img.url);
+  }
 });
 
 function clearResult() {
@@ -832,12 +971,93 @@ function downloadAllImages() {
   triggerDownload(runtime.angles.backDataUrl, `look-back-${ts}.${mimeToExtension(runtime.angles.backMimeType)}`);
 }
 
+async function saveImageToLibrary(opts: {
+  dataUrl: string;
+  mimeType: string | null;
+  title: string;
+  kind: string;
+  fileName?: string;
+}) {
+  const parsed = dataUrlToBlob(opts.dataUrl);
+  const record = await saveImageRecord({
+    title: opts.title,
+    kind: opts.kind,
+    mimeType: opts.mimeType || parsed.mimeType,
+    fileName: opts.fileName,
+    storyboardId: activeStoryboardId.value,
+    storyboardTitle: activeStoryboard.value.title,
+    blob: parsed.blob,
+  });
+  savedImages.value = [toSavedImageView(record), ...savedImages.value];
+}
+
+async function saveMainImage() {
+  const runtime = activeRuntime.value;
+  if (!runtime.resultDataUrl) {
+    runtime.generateError = "Generate the main image first.";
+    return;
+  }
+  try {
+    const ts = Date.now();
+    await saveImageToLibrary({
+      dataUrl: runtime.resultDataUrl,
+      mimeType: runtime.resultMimeType,
+      title: `Look — ${activeStoryboard.value.title}`,
+      kind: "main",
+      fileName: `look-main-${ts}.${mimeToExtension(runtime.resultMimeType)}`,
+    });
+  } catch (err: any) {
+    runtime.generateError = err?.message || String(err);
+  }
+}
+
+async function saveAllImages() {
+  const runtime = activeRuntime.value;
+  if (!runtime.resultDataUrl || !runtime.angles.sideDataUrl || !runtime.angles.backDataUrl) {
+    runtime.angles.error = "Generate the main, side, and back images before saving.";
+    return;
+  }
+  try {
+    const ts = Date.now();
+    await Promise.all([
+      saveImageToLibrary({
+        dataUrl: runtime.resultDataUrl,
+        mimeType: runtime.resultMimeType,
+        title: `Look — ${activeStoryboard.value.title}`,
+        kind: "main",
+        fileName: `look-main-${ts}.${mimeToExtension(runtime.resultMimeType)}`,
+      }),
+      saveImageToLibrary({
+        dataUrl: runtime.angles.sideDataUrl,
+        mimeType: runtime.angles.sideMimeType,
+        title: `Side view — ${activeStoryboard.value.title}`,
+        kind: "side",
+        fileName: `look-side-${ts}.${mimeToExtension(runtime.angles.sideMimeType)}`,
+      }),
+      saveImageToLibrary({
+        dataUrl: runtime.angles.backDataUrl,
+        mimeType: runtime.angles.backMimeType,
+        title: `Back view — ${activeStoryboard.value.title}`,
+        kind: "back",
+        fileName: `look-back-${ts}.${mimeToExtension(runtime.angles.backMimeType)}`,
+      }),
+    ]);
+  } catch (err: any) {
+    runtime.angles.error = err?.message || String(err);
+  }
+}
+
 async function generateMultipleAngles() {
   const runtime = activeRuntime.value;
   if (isGenerating.value) return;
   if (runtime.angles.generating) return;
 
   runtime.angles.error = null;
+
+  const apiKeyValue = requireApiKey((message) => {
+    runtime.angles.error = message;
+  });
+  if (!apiKeyValue) return;
 
   if (!runtime.resultDataUrl) {
     runtime.angles.error = "Generate the main image first.";
@@ -860,21 +1080,63 @@ async function generateMultipleAngles() {
   runtime.angles.timingsMs = null;
 
   try {
-    const res = await apiPost("/api/looks/angles", {
-      garmentDataUrls: runtime.garmentDataUrls,
-      garmentRefUrl: runtime.garmentRefDataUrl,
-      mainImageUrl: runtime.resultDataUrl,
+    const garmentRefInline = dataUrlToInlineImage(runtime.garmentRefDataUrl);
+    const mainInline = dataUrlToInlineImage(runtime.resultDataUrl);
+    const garmentAnglesInline = runtime.garmentDataUrls.map((src) => dataUrlToInlineImage(src));
+
+    const referenceImages = [garmentRefInline, ...garmentAnglesInline, mainInline];
+    const promptBase = {
       plan: runtime.lastPlan,
       finalPrompt: runtime.lastFinalPrompt || "",
+      garmentAngleCount: garmentAnglesInline.length,
       hasModelReference: false,
       hasBackgroundReference: false,
-    });
+    };
 
-    runtime.angles.sideMimeType = res?.side?.mimeType ?? null;
-    runtime.angles.sideDataUrl = res?.side?.url ?? null;
-    runtime.angles.backMimeType = res?.back?.mimeType ?? null;
-    runtime.angles.backDataUrl = res?.back?.url ?? null;
-    runtime.angles.timingsMs = res?.timingsMs ?? null;
+    const sidePrompt = buildMultiAnglePrompt({ ...promptBase, angle: "side" });
+    const backPrompt = buildMultiAnglePrompt({ ...promptBase, angle: "back" });
+
+    const t0 = performance.now();
+    const [sideRes, backRes] = await Promise.all([
+      (async () => {
+        const t = performance.now();
+        const res = await generateImage({
+          apiKey: apiKeyValue,
+          model: "gemini-3-pro-image-preview",
+          promptText: sidePrompt,
+          images: referenceImages,
+          aspectRatio: "3:4",
+          width: 1080,
+          height: 1440,
+          timeoutMs: 180000,
+        });
+        return { res, ms: Math.round(performance.now() - t) };
+      })(),
+      (async () => {
+        const t = performance.now();
+        const res = await generateImage({
+          apiKey: apiKeyValue,
+          model: "gemini-3-pro-image-preview",
+          promptText: backPrompt,
+          images: referenceImages,
+          aspectRatio: "3:4",
+          width: 1080,
+          height: 1440,
+          timeoutMs: 180000,
+        });
+        return { res, ms: Math.round(performance.now() - t) };
+      })(),
+    ]);
+
+    runtime.angles.sideMimeType = sideRes.res.mimeType;
+    runtime.angles.sideDataUrl = `data:${sideRes.res.mimeType};base64,${sideRes.res.imageBase64}`;
+    runtime.angles.backMimeType = backRes.res.mimeType;
+    runtime.angles.backDataUrl = `data:${backRes.res.mimeType};base64,${backRes.res.imageBase64}`;
+    runtime.angles.timingsMs = {
+      side: sideRes.ms,
+      back: backRes.ms,
+      total: Math.round(performance.now() - t0),
+    };
   } catch (err: any) {
     runtime.angles.error = err?.message || String(err);
   } finally {
@@ -907,6 +1169,9 @@ const computedTimings = computed(() => computeTimingsMs(activeRuntime.value.resu
 
 onMounted(() => {
   window.addEventListener("keydown", onGlobalKeyDown);
+  loadSavedImages().catch((err) => {
+    console.warn("Failed to load saved images.", err);
+  });
 });
 
 // Derived inputs
@@ -1013,9 +1278,14 @@ async function onGenerateLook() {
     return;
   }
 
-	  isGenerating.value = true;
-	  generationStepIndex.value = 0;
-	  startGenerationTimer();
+  const apiKeyValue = requireApiKey((message) => {
+    runtime.generateError = message;
+  });
+  if (!apiKeyValue) return;
+
+  isGenerating.value = true;
+  generationStepIndex.value = 0;
+  startGenerationTimer();
 
   try {
     generationStepIndex.value = 1;
@@ -1030,25 +1300,140 @@ async function onGenerateLook() {
       model_styling_notes: modelStylingNotesFinal.value || null,
     };
 
-    const res = await apiPost("/api/looks/generate", {
-      garmentDataUrls: runtime.garmentDataUrls,
-      overrides: userOverrides,
-      styleKeywords: styleKeywordsFinal.value ? parseLocalTags(styleKeywordsFinal.value) : [],
-      accessories: activeConfig.value.accessories.trim() ? parseLocalTags(activeConfig.value.accessories) : [],
+    const styleKeywords = styleKeywordsFinal.value ? parseLocalTags(styleKeywordsFinal.value) : [];
+    const accessories = activeConfig.value.accessories.trim() ? parseLocalTags(activeConfig.value.accessories) : [];
+
+    const garmentImages = runtime.garmentDataUrls.map((src) => dataUrlToInlineImage(src));
+    const timings: Record<string, number> = {};
+    const debug: Record<string, unknown> = {};
+    let planError: string | null = null;
+
+    let plan: LookPlan;
+    const tPlan0 = performance.now();
+    try {
+      const planRes = await planLookFromGarment({
+        apiKey: apiKeyValue,
+        model: "gemini-3-flash-preview",
+        garmentImages,
+        availableBackgroundThemes: [],
+        availableModelEthnicities: [],
+        userOverrides,
+        timeoutMs: 120000,
+      });
+      plan = planRes.plan;
+      debug.plan_raw_text = planRes.rawText;
+      debug.plan_raw_json = planRes.rawJson;
+    } catch (err: any) {
+      planError = err?.message || String(err);
+      const ov = userOverrides;
+      plan = {
+        occasion: ov.occasion || "casual",
+        color_scheme: ov.color_scheme || "neutral",
+        print_style: "as-is",
+        style_keywords: [],
+        background_theme: ov.background_theme || ov.occasion || "casual",
+        footwear: ov.footwear || "",
+        accessories: [],
+        negative_prompt:
+          "blurry, low quality, incorrect garment, altered design, wrong print, extra limbs, deformed hands, text overlay, watermark",
+        model_ethnicity: ov.model_ethnicity || "",
+        model_pose: ov.model_pose || "",
+        model_styling_notes: ov.model_styling_notes || "",
+      };
+    }
+    timings.plan = Math.round(performance.now() - tPlan0);
+
+    plan = applyFreeformOverrides(plan, {
+      styleKeywords: styleKeywords.length ? styleKeywords : undefined,
+      accessories: accessories.length ? accessories : undefined,
       footwear: footwearFinal.value || null,
     });
 
+    const tFinalPrompt0 = performance.now();
+    const finalPromptRes = await generateFinalPrompt({
+      apiKey: apiKeyValue,
+      model: "gemini-3-flash-preview",
+      plan,
+      background: null,
+      chosenModel: null,
+      hasBackgroundReference: false,
+      hasModelReference: false,
+      timeoutMs: 120000,
+    });
+    timings.final_prompt = Math.round(performance.now() - tFinalPrompt0);
+    debug.final_prompt = finalPromptRes.prompt;
+
+    generationStepIndex.value = 2;
+
+    const garmentRefPrompt = buildGarmentReferencePrompt();
+    const tGarment0 = performance.now();
+    const garmentRef = await generateImage({
+      apiKey: apiKeyValue,
+      model: "gemini-3-pro-image-preview",
+      promptText: garmentRefPrompt,
+      images: garmentImages,
+      aspectRatio: "3:4",
+      width: 1080,
+      height: 1440,
+      timeoutMs: 180000,
+    });
+    timings.garment_reference = Math.round(performance.now() - tGarment0);
+    const garmentRefDataUrl = `data:${garmentRef.mimeType};base64,${garmentRef.imageBase64}`;
+
     generationStepIndex.value = 3;
 
-    runtime.lastPlan = res?.plan ? safeClone(res.plan) : null;
-    runtime.lastFinalPrompt = res?.finalPrompt ?? null;
-    runtime.garmentRefMimeType = res?.garmentRef?.mimeType ?? null;
-    runtime.garmentRefDataUrl = res?.garmentRef?.url ?? null;
-    runtime.resultMimeType = res?.result?.mimeType ?? null;
-    runtime.resultDataUrl = res?.result?.url ?? null;
-    runtime.resultTimingsMs = res?.timingsMs ?? null;
-    runtime.chosenSummary = res?.chosenSummary ?? null;
-    runtime.debugSummary = res?.debugSummary ?? null;
+    const compositePrompt = buildCompositePrompt({
+      plan,
+      finalPrompt: finalPromptRes.prompt,
+      hasModelReference: false,
+      hasBackgroundReference: false,
+    });
+    debug.composite_prompt = compositePrompt;
+    debug.negative_prompt = plan.negative_prompt;
+
+    const tComposite0 = performance.now();
+    const composite = await generateImage({
+      apiKey: apiKeyValue,
+      model: "gemini-3-pro-image-preview",
+      promptText: compositePrompt,
+      images: [{ mimeType: garmentRef.mimeType, data: base64ToBytes(garmentRef.imageBase64) }],
+      aspectRatio: "3:4",
+      width: 1080,
+      height: 1440,
+      timeoutMs: 180000,
+    });
+    timings.composite = Math.round(performance.now() - tComposite0);
+
+    timings.api_total = Object.values(timings).reduce(
+      (acc, v) => acc + (typeof v === "number" ? v : 0),
+      0,
+    );
+
+    const chosenSummary = {
+      occasion: plan.occasion,
+      color_scheme: plan.color_scheme,
+      print_style: plan.print_style,
+      style_keywords: plan.style_keywords,
+      footwear: plan.footwear,
+      accessories: plan.accessories,
+      background_theme: plan.background_theme,
+      model_ethnicity: plan.model_ethnicity,
+      model_pose: plan.model_pose,
+    };
+
+    runtime.lastPlan = safeClone(plan);
+    runtime.lastFinalPrompt = finalPromptRes.prompt;
+    runtime.garmentRefMimeType = garmentRef.mimeType;
+    runtime.garmentRefDataUrl = garmentRefDataUrl;
+    runtime.resultMimeType = composite.mimeType;
+    runtime.resultDataUrl = `data:${composite.mimeType};base64,${composite.imageBase64}`;
+    runtime.resultTimingsMs = timings;
+    runtime.chosenSummary = chosenSummary;
+    runtime.debugSummary = {
+      timings_ms: timings,
+      plan_error: planError,
+      ...debug,
+    };
   } catch (err: any) {
     runtime.generateError = err?.message || String(err);
   } finally {
@@ -1067,6 +1452,11 @@ async function retryMainImage(retryComment: string) {
     return;
   }
 
+  const apiKeyValue = requireApiKey((message) => {
+    runtime.generateError = message;
+  });
+  if (!apiKeyValue) return;
+
   isGenerating.value = true;
   generationStepIndex.value = 3;
   startGenerationTimer();
@@ -1082,24 +1472,71 @@ async function retryMainImage(retryComment: string) {
       model_styling_notes: modelStylingNotesFinal.value || null,
     };
 
-    const res = await apiPost("/api/looks/retry", {
-      plan: runtime.lastPlan,
-      finalPrompt: runtime.lastFinalPrompt,
-      retryComment,
-      garmentRefUrl: runtime.garmentRefDataUrl,
-      overrides,
-      styleKeywords: styleKeywordsFinal.value ? parseLocalTags(styleKeywordsFinal.value) : [],
-      accessories: activeConfig.value.accessories.trim() ? parseLocalTags(activeConfig.value.accessories) : [],
+    let plan = { ...runtime.lastPlan };
+    const ov = overrides || {};
+    if ((ov.occasion || "").trim()) plan.occasion = ov.occasion.trim();
+    if ((ov.color_scheme || "").trim()) plan.color_scheme = ov.color_scheme.trim();
+    if ((ov.background_theme || "").trim()) plan.background_theme = ov.background_theme.trim();
+    if ((ov.footwear || "").trim()) plan.footwear = ov.footwear.trim();
+    if ((ov.model_ethnicity || "").trim()) plan.model_ethnicity = ov.model_ethnicity.trim();
+    if ((ov.model_pose || "").trim()) plan.model_pose = ov.model_pose.trim();
+    if ((ov.model_styling_notes || "").trim()) plan.model_styling_notes = ov.model_styling_notes.trim();
+
+    const styleKeywords = styleKeywordsFinal.value ? parseLocalTags(styleKeywordsFinal.value) : [];
+    const accessories = activeConfig.value.accessories.trim() ? parseLocalTags(activeConfig.value.accessories) : [];
+    plan = applyFreeformOverrides(plan, {
+      styleKeywords: styleKeywords.length ? styleKeywords : undefined,
+      accessories: accessories.length ? accessories : undefined,
       footwear: footwearFinal.value || null,
     });
 
-    runtime.lastPlan = res?.plan ? safeClone(res.plan) : runtime.lastPlan;
-    runtime.resultMimeType = res?.result?.mimeType ?? null;
-    runtime.resultDataUrl = res?.result?.url ?? null;
+    const compositePrompt = buildRetryCompositePrompt({
+      plan,
+      finalPrompt: runtime.lastFinalPrompt,
+      hasModelReference: false,
+      hasBackgroundReference: false,
+      retryComment: retryComment || "",
+    });
+
+    const t0 = performance.now();
+    const garmentRefInline = dataUrlToInlineImage(runtime.garmentRefDataUrl);
+    const composite = await generateImage({
+      apiKey: apiKeyValue,
+      model: "gemini-3-pro-image-preview",
+      promptText: compositePrompt,
+      images: [garmentRefInline],
+      aspectRatio: "3:4",
+      width: 1080,
+      height: 1440,
+      timeoutMs: 180000,
+    });
+    const ms = Math.round(performance.now() - t0);
+
+    const chosenSummary = {
+      occasion: plan.occasion,
+      color_scheme: plan.color_scheme,
+      print_style: plan.print_style,
+      style_keywords: plan.style_keywords,
+      footwear: plan.footwear,
+      accessories: plan.accessories,
+      background_theme: plan.background_theme,
+      model_ethnicity: plan.model_ethnicity,
+      model_pose: plan.model_pose,
+    };
+
+    runtime.lastPlan = safeClone(plan);
+    runtime.resultMimeType = composite.mimeType;
+    runtime.resultDataUrl = `data:${composite.mimeType};base64,${composite.imageBase64}`;
     runtime.angles = createDefaultAnglesRuntime();
-    runtime.resultTimingsMs = res?.timingsMs ?? null;
-    runtime.chosenSummary = res?.chosenSummary ?? null;
-    runtime.debugSummary = res?.debugSummary ?? null;
+    runtime.resultTimingsMs = { composite: ms, api_total: ms };
+    runtime.chosenSummary = chosenSummary;
+    runtime.debugSummary = {
+      timings_ms: { composite: ms, api_total: ms },
+      retry_comment: retryComment || "",
+      final_prompt: runtime.lastFinalPrompt,
+      composite_prompt: compositePrompt,
+      negative_prompt: plan.negative_prompt,
+    };
   } catch (err: any) {
     runtime.generateError = err?.message || String(err);
   } finally {

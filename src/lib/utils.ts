@@ -18,6 +18,17 @@ export async function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+export function dataUrlToBlob(dataUrl: string): { blob: Blob; mimeType: string } {
+  const trimmed = (dataUrl || "").trim();
+  const match = trimmed.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) throw new Error("Invalid data URL.");
+  const mimeType = match[1].trim().toLowerCase() || "application/octet-stream";
+  const bin = atob(match[2]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+  return { blob: new Blob([bytes], { type: mimeType }), mimeType };
+}
+
 export function randomId(): string {
   try {
     return crypto.randomUUID();

@@ -135,18 +135,18 @@ export async function generateText(opts: {
 
   const rawBody = await resp.text();
   if (!resp.ok) {
-    throw new GeminiError(`Gemini API error (${resp.status}): ${rawBody.slice(0, 500)}`);
+    throw new GeminiError(`Image API error (${resp.status}): ${rawBody.slice(0, 500)}`);
   }
 
   let json: any;
   try {
     json = JSON.parse(rawBody);
   } catch {
-    throw new GeminiError("Gemini API returned non-JSON response.");
+    throw new GeminiError("Image API returned non-JSON response.");
   }
 
   const text = pickResponseJsonText(json);
-  if (!text) throw new GeminiError("Gemini API did not return text.");
+  if (!text) throw new GeminiError("Image API did not return text.");
   return { text, raw: json };
 }
 
@@ -272,7 +272,7 @@ export async function generateImage(opts: {
     const responseText = pickResponseJsonText(json);
     const detail = (responseText || "").trim();
     throw new GeminiError(
-      `Gemini API did not return an image.${detail ? ` Response text: ${detail.slice(0, 500)}` : ""}`,
+      `Image API did not return an image.${detail ? ` Response text: ${detail.slice(0, 500)}` : ""}`,
     );
   }
   return { mimeType: inline.mimeType, imageBase64: inline.data, raw: json };

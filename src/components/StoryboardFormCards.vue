@@ -2,7 +2,7 @@
   <form class="storyboardForm" @submit.prevent="$emit('submit')">
     <fieldset class="formFieldset" :disabled="isGenerating">
       <div class="storyboardCards">
-        <div class="card">
+        <div class="parameter-section">
           <div class="sectionTitle" style="margin-top: 0">Garment photos</div>
           <div>
             <FieldLabel
@@ -48,7 +48,7 @@
           </div>
         </div>
 
-        <div class="card">
+        <div class="parameter-section">
           <div class="sectionTitle" style="margin-top: 0">Creative Direction</div>
 
           <div>
@@ -142,7 +142,7 @@
           </div>
         </div>
 
-        <div class="card">
+        <div class="parameter-section">
           <div class="sectionTitle" style="margin-top: 0">Background</div>
           <div>
             <FieldLabel
@@ -165,7 +165,7 @@
           </div>
         </div>
 
-        <div class="card">
+        <div class="parameter-section">
           <div class="sectionTitle" style="margin-top: 0">Model</div>
           <div>
             <FieldLabel
@@ -232,7 +232,7 @@
           </div>
         </div>
 
-        <div class="card">
+        <div class="">
           <div class="sectionTitle" style="margin-top: 0">Generate</div>
           <div class="actions">
             <button type="submit" class="btnPrimary" :disabled="isGenerating">
