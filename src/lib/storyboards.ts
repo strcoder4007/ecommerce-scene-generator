@@ -87,6 +87,7 @@ export type StoryboardRecord = {
   createdAt: string;
   updatedAt: string;
   config: StoryboardConfig;
+  previewDataUrl?: string;
 };
 
 export function createDefaultStoryboardConfig(): StoryboardConfig {
@@ -276,7 +277,8 @@ function normalizeStoryboard(value: unknown): StoryboardRecord | null {
   const createdAt = asString(raw.createdAt) ?? nowIso();
   const updatedAt = asString(raw.updatedAt) ?? createdAt;
   const config = normalizeConfig(raw.config);
-  return { id, title, createdAt, updatedAt, config };
+  const previewDataUrl = asString(raw.previewDataUrl) ?? undefined;
+  return { id, title, createdAt, updatedAt, config, previewDataUrl };
 }
 
 export function createStoryboardRecord(opts?: {

@@ -96,7 +96,7 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
-.parameter-section {
+.parameterSection {
   margin-bottom: 50px;
 }
 
@@ -970,18 +970,30 @@ pre {
 
 .preview {
   margin-top: 12px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   gap: 12px;
   align-items: stretch;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.preview::-webkit-scrollbar {
+  height: 8px;
+}
+
+.preview::-webkit-scrollbar-thumb {
+  background: rgba(var(--ink-rgb), 0.12);
+  border-radius: 999px;
 }
 
 .previewGarments {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* display: grid; */
+  /* grid-template-columns: repeat(4, minmax(0, 1fr)); */
 }
 
 .previewAssets {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* display: grid; */
+  /* grid-template-columns: repeat(2, minmax(0, 1fr)); */
 }
 
 .previewItem {
@@ -992,6 +1004,9 @@ pre {
   padding: 6px;
   overflow: hidden;
   min-height: 140px;
+  min-width: 100px;
+  width: 100px;
+  flex: 0 0 auto;
   display: grid;
   place-items: center;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
@@ -1750,4 +1765,188 @@ pre {
   .skeleton::after {
     animation: none !important;
   }
+}
+.compactGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.savedImageCard {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+  min-height: 0;
+  max-height: none;
+  width: 100%;
+}
+
+.savedImageCard:hover {
+  box-shadow: none;
+  background: transparent;
+  border-color: transparent;
+}
+
+.savedImagePreviewContainer {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.savedImagePreview {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  display: block;
+  cursor: pointer;
+}
+
+.savedImagePreview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 0;
+  transition: transform 300ms ease;
+}
+
+.savedImagePreviewContainer:hover .savedImagePreview img {
+  transform: scale(1.05);
+}
+
+.savedImageOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: opacity 150ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.savedImagePreviewContainer:hover .savedImageOverlay {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.overlayButton {
+  background: rgba(255, 255, 255, 0.95);
+  color: rgba(var(--ink-rgb), 0.7);
+  border-radius: 999px;
+  width: 36px;
+  height: 36px;
+  padding: 7px;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transition: transform 150ms ease, background 150ms ease, color 150ms ease, box-shadow 150ms ease;
+}
+
+.overlayButton:hover {
+  background: #ffffff;
+  color: var(--accent);
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.overlayButton.danger {
+  color: #b91c1c;
+}
+
+.overlayButton.danger:hover {
+  background: #dc2626;
+  color: white;
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.3);
+}
+
+.savedImageMeta {
+  margin-top: 8px;
+  padding: 0 2px;
+}
+
+.savedImageTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(var(--ink-rgb), 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.savedImageSub {
+  font-size: 11px;
+  color: rgba(var(--muted-rgb), 0.7);
+  margin-top: 2px;
+}
+
+/* Modernize Preview Items */
+.previewItem {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+.previewItem:hover {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.previewItem img {
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: opacity 150ms ease, transform 150ms ease;
+  background: var(--surface-2); /* Keep a subtle background for transparent images */
+  object-fit: cover; /* Uniform look */
+}
+
+.previewItem:hover img {
+  opacity: 0.9;
+}
+
+/* Remove the old maximize button from display just in case */
+.previewActionButton {
+  display: none !important;
+}
+
+/* Modern Cross Button */
+.removePreviewButton {
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.95);
+  border: 0;
+  backdrop-filter: blur(2px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  transition: all 150ms ease;
+}
+
+.removePreviewButton:hover {
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  transform: scale(1.1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+
+.removePreviewButton svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.5;
 }

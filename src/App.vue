@@ -3,7 +3,7 @@
     <div class="appShell">
       <aside class="sidebar">
         <div class="sidebarBrand">
-          <div class="brandEyebrow">Studio</div>
+          <div class="brandEyebrow">AI Studio</div>
           <div class="brandTitle">Fashion Image Generator</div>
         </div>
         <nav class="sidebarNav" role="tablist" aria-label="Main sections">
@@ -69,6 +69,7 @@
               :on-print-design-file-change="onPrintDesignFileChange"
               :remove-base-garment="removePrintBaseGarment"
               :remove-print-design="removePrintDesign"
+              :print-elapsed-ms="printGenerationElapsedMs"
               @generate="generatePrintedGarment"
               @retry="retryPrintedGarment"
               @save="savePrintedGarment"
@@ -117,6 +118,12 @@
                       :remove-garment-image="removeGarmentImage"
                       :remove-background-image="removeBackgroundImage"
                       :remove-model-image="removeModelImage"
+                      :saved-prints="savedPrints"
+                      :background-asset-images="backgroundAssetImages"
+                      :model-asset-images="modelAssetImages"
+                      :add-garment-from-data-url="addGarmentFromDataUrl"
+                      :add-background-from-data-url="addBackgroundFromDataUrl"
+                      :add-model-from-data-url="addModelFromDataUrl"
                       @submit="onGenerateLook"
                       @open-image="openImageModal"
                     />
@@ -151,6 +158,7 @@
               :format-timestamp="formatSavedTimestamp"
               :mime-to-extension="mimeToExtension"
               @open-image="openImageModal"
+              @delete-image="deleteImage"
             />
           </template>
 
@@ -202,25 +210,12 @@
                         :key="`${activeStoryboardId}-bg-asset-${idx}`"
                         class="previewItem"
                       >
-                        <img :src="src" :alt="`Background reference ${idx + 1}`" draggable="false" />
-                        <button
-                          type="button"
-                          class="previewActionButton"
+                        <img
+                          :src="src"
+                          :alt="`Background reference ${idx + 1}`"
+                          draggable="false"
                           @click="openImageModal(src, 'Background reference', 'Background reference')"
-                          :aria-label="`Open background reference ${idx + 1}`"
-                          title="Open image"
-                        >
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M10 10 5 5" />
-                            <path d="M5 8V5H8" />
-                            <path d="M14 10 19 5" />
-                            <path d="M16 5h3v3" />
-                            <path d="M10 14 5 19" />
-                            <path d="M5 16v3h3" />
-                            <path d="M14 14 19 19" />
-                            <path d="M16 19h3v-3" />
-                          </svg>
-                        </button>
+                        />
                         <button
                           type="button"
                           class="removePreviewButton"
@@ -260,25 +255,12 @@
                         :key="`${activeStoryboardId}-model-asset-${idx}`"
                         class="previewItem"
                       >
-                        <img :src="src" :alt="`Model reference ${idx + 1}`" draggable="false" />
-                        <button
-                          type="button"
-                          class="previewActionButton"
+                        <img
+                          :src="src"
+                          :alt="`Model reference ${idx + 1}`"
+                          draggable="false"
                           @click="openImageModal(src, 'Model reference', 'Model reference')"
-                          :aria-label="`Open model reference ${idx + 1}`"
-                          title="Open image"
-                        >
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M10 10 5 5" />
-                            <path d="M5 8V5H8" />
-                            <path d="M14 10 19 5" />
-                            <path d="M16 5h3v3" />
-                            <path d="M10 14 5 19" />
-                            <path d="M5 16v3h3" />
-                            <path d="M14 14 19 19" />
-                            <path d="M16 19h3v-3" />
-                          </svg>
-                        </button>
+                        />
                         <button
                           type="button"
                           class="removePreviewButton"
@@ -291,6 +273,107 @@
                             <path d="M6 6l12 12" />
                           </svg>
                         </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="divider" style="margin: 32px 0"></div>
+
+              <div class="assetLibrary">
+                <div class="title" style="font-size: 18px; margin: 0">Asset Library</div>
+                <div class="muted" style="margin-top: 6px">
+                  History of all background and model images you've uploaded.
+                </div>
+
+                <div v-if="!assetImages.length" class="savedImagesSectionEmpty" style="margin-top: 20px">
+                  <div class="muted">No assets uploaded yet.</div>
+                </div>
+
+                <div v-else>
+                  <div v-if="backgroundAssetImages.length" style="margin-top: 20px">
+                    <div class="sectionTitle" style="margin: 0 0 12px">Backgrounds</div>
+                    <div class="savedImagesGrid compactGrid">
+                      <div v-for="image in backgroundAssetImages" :key="image.id" class="savedImageCard">
+                        <div class="savedImagePreviewContainer">
+                          <button
+                            type="button"
+                            class="savedImagePreview"
+                            @click="openImageModal(image.url, image.title)"
+                          >
+                            <img :src="image.url" :alt="image.title" draggable="false" />
+                          </button>
+                          <div class="savedImageOverlay">
+                            <button
+                              type="button"
+                              class="overlayButton"
+                              @click="openImageModal(image.url, image.title)"
+                              title="Maximize"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              class="overlayButton danger"
+                              @click="deleteImage(image.id)"
+                              title="Delete asset"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                        <div class="savedImageMeta">
+                          <div class="savedImageTitle">{{ image.title }}</div>
+                          <div class="savedImageSub">{{ formatKind(image.kind) }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="modelAssetImages.length" style="margin-top: 20px">
+                    <div class="sectionTitle" style="margin: 0 0 12px">Models</div>
+                    <div class="savedImagesGrid compactGrid">
+                      <div v-for="image in modelAssetImages" :key="image.id" class="savedImageCard">
+                        <div class="savedImagePreviewContainer">
+                          <button
+                            type="button"
+                            class="savedImagePreview"
+                            @click="openImageModal(image.url, image.title)"
+                          >
+                            <img :src="image.url" :alt="image.title" draggable="false" />
+                          </button>
+                          <div class="savedImageOverlay">
+                            <button
+                              type="button"
+                              class="overlayButton"
+                              @click="openImageModal(image.url, image.title)"
+                              title="Maximize"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              class="overlayButton danger"
+                              @click="deleteImage(image.id)"
+                              title="Delete asset"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                        <div class="savedImageMeta">
+                          <div class="savedImageTitle">{{ image.title }}</div>
+                          <div class="savedImageSub">{{ formatKind(image.kind) }}</div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -895,6 +978,132 @@ try {
   // Ignore localStorage quota errors; storyboards will remain in memory.
 }
 
+function createThumbnail(dataUrl: string, width = 200): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const scale = width / img.width;
+      canvas.width = width;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(dataUrl);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", 0.8));
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+const savedPrints = computed(() => savedImages.value.filter((img) => img.kind === "prints"));
+const assetImages = computed(() => savedImages.value.filter((img) => img.kind?.startsWith("asset-")));
+const backgroundAssetImages = computed(() => savedImages.value.filter((img) => img.kind === "asset-background"));
+const modelAssetImages = computed(() => savedImages.value.filter((img) => img.kind === "asset-model"));
+
+function formatKind(kind: string): string {
+  if (kind === "asset-background") return "Background";
+  if (kind === "asset-model") return "Model";
+  return (kind || "").replace(/_/g, " ").trim();
+}
+
+import { deleteSavedImage } from "./lib/indexeddb";
+
+async function deleteImage(id: string) {
+  if (!confirm("Are you sure you want to delete this image?")) return;
+  try {
+    await deleteSavedImage(id);
+    const idx = savedImages.value.findIndex(img => img.id === id);
+    if (idx !== -1) {
+      const img = savedImages.value[idx];
+      URL.revokeObjectURL(img.url);
+      savedImages.value.splice(idx, 1);
+    }
+  } catch (e) {
+    console.error("Failed to delete image", e);
+  }
+}
+
+async function addGarmentFromDataUrl(url: string, fileName: string) {
+  const runtime = activeRuntime.value;
+  if (!runtime) return;
+
+  const MAX = 4;
+  const remaining = Math.max(0, MAX - runtime.garmentDataUrls.length);
+  if (!remaining) {
+    runtime.generateError = "You can upload up to 4 garment photos. Remove one to add more.";
+    return;
+  }
+
+  // If the url is a blob URL, we need to convert it to base64 for the runtime
+  let dataUrl = url;
+  if (url.startsWith("blob:")) {
+    try {
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      dataUrl = await fileToDataUrl(new File([blob], fileName, { type: blob.type }));
+    } catch (e) {
+      console.error("Failed to convert blob to data url", e);
+      return;
+    }
+  }
+
+  runtime.garmentFileNames.push(fileName);
+  runtime.garmentDataUrls.push(dataUrl);
+  runtime.generateError = null;
+}
+
+async function addBackgroundFromDataUrl(url: string, fileName: string) {
+  const runtime = activeRuntime.value;
+  if (!runtime) return;
+
+  const MAX = 4;
+  const remaining = Math.max(0, MAX - runtime.backgroundDataUrls.length);
+  if (!remaining) return;
+
+  let dataUrl = url;
+  if (url.startsWith("blob:")) {
+    try {
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      dataUrl = await fileToDataUrl(new File([blob], fileName, { type: blob.type }));
+    } catch (e) {
+      console.error("Failed to convert blob to data url", e);
+      return;
+    }
+  }
+
+  runtime.backgroundFileNames.push(fileName);
+  runtime.backgroundDataUrls.push(dataUrl);
+}
+
+async function addModelFromDataUrl(url: string, fileName: string) {
+  const runtime = activeRuntime.value;
+  if (!runtime) return;
+
+  const MAX = 4;
+  const remaining = Math.max(0, MAX - runtime.modelDataUrls.length);
+  if (!remaining) return;
+
+  let dataUrl = url;
+  if (url.startsWith("blob:")) {
+    try {
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      dataUrl = await fileToDataUrl(new File([blob], fileName, { type: blob.type }));
+    } catch (e) {
+      console.error("Failed to convert blob to data url", e);
+      return;
+    }
+  }
+
+  runtime.modelFileNames.push(fileName);
+  runtime.modelDataUrls.push(dataUrl);
+}
+
 async function onGarmentFileChange(e: Event) {
   const input = e.target as HTMLInputElement | null;
   const files = Array.from(input?.files ?? []);
@@ -947,6 +1156,20 @@ async function onBackgroundFileChange(e: Event) {
   runtime.backgroundFileNames.push(...limited.map((f) => f.name || "background"));
   runtime.backgroundDataUrls.push(...dataUrls);
 
+  // Save to DB
+  for (let i = 0; i < limited.length; i++) {
+    const file = limited[i];
+    await saveImageRecord({
+      title: file.name || "Uploaded Background",
+      kind: "asset-background",
+      mimeType: file.type,
+      blob: file,
+      createdAt: Date.now(),
+    }).then(record => {
+      savedImages.value.unshift(toSavedImageView(record));
+    }).catch(console.error);
+  }
+
   if (input) input.value = "";
 }
 
@@ -971,6 +1194,20 @@ async function onModelFileChange(e: Event) {
   const dataUrls = await Promise.all(limited.map((f) => fileToDataUrl(f)));
   runtime.modelFileNames.push(...limited.map((f) => f.name || "model"));
   runtime.modelDataUrls.push(...dataUrls);
+
+  // Save to DB
+  for (let i = 0; i < limited.length; i++) {
+    const file = limited[i];
+    await saveImageRecord({
+      title: file.name || "Uploaded Model",
+      kind: "asset-model",
+      mimeType: file.type,
+      blob: file,
+      createdAt: Date.now(),
+    }).then(record => {
+      savedImages.value.unshift(toSavedImageView(record));
+    }).catch(console.error);
+  }
 
   if (input) input.value = "";
 }
@@ -1035,6 +1272,23 @@ function removePrintDesign() {
   runtime.prints.error = null;
 }
 
+const printGenerationElapsedMs = ref(0);
+let printGenerationInterval: number | null = null;
+
+function startPrintGenerationTimer() {
+  if (printGenerationInterval) window.clearInterval(printGenerationInterval);
+  const startedAt = performance.now();
+  printGenerationElapsedMs.value = 0;
+  printGenerationInterval = window.setInterval(() => {
+    printGenerationElapsedMs.value = performance.now() - startedAt;
+  }, 100);
+}
+
+function stopPrintGenerationTimer() {
+  if (printGenerationInterval) window.clearInterval(printGenerationInterval);
+  printGenerationInterval = null;
+}
+
 async function generatePrintedGarment(retryComment?: string) {
   const runtime = activeRuntime.value;
   runtime.prints.error = null;
@@ -1067,6 +1321,7 @@ async function generatePrintedGarment(retryComment?: string) {
   runtime.prints.outputDataUrl = null;
   runtime.prints.outputMimeType = null;
   runtime.prints.timingsMs = null;
+  startPrintGenerationTimer();
 
   try {
     const printDesignDataUrl =
@@ -1098,6 +1353,7 @@ async function generatePrintedGarment(retryComment?: string) {
     runtime.prints.error = err?.message || String(err);
   } finally {
     runtime.prints.generating = false;
+    stopPrintGenerationTimer();
   }
 }
 
@@ -1127,6 +1383,7 @@ function stopGenerationTimer() {
 
 onBeforeUnmount(() => {
   if (generationInterval) window.clearInterval(generationInterval);
+  if (printGenerationInterval) window.clearInterval(printGenerationInterval);
   if (storyboardSaveTimer) window.clearTimeout(storyboardSaveTimer);
   window.removeEventListener("keydown", onGlobalKeyDown);
   for (const img of savedImages.value) {
@@ -1712,13 +1969,13 @@ async function retryMainImage(retryComment: string) {
 
     let plan = { ...runtime.lastPlan };
     const ov = overrides || {};
-    if ((ov.occasion || "").trim()) plan.occasion = ov.occasion.trim();
-    if ((ov.color_scheme || "").trim()) plan.color_scheme = ov.color_scheme.trim();
-    if ((ov.background_theme || "").trim()) plan.background_theme = ov.background_theme.trim();
-    if ((ov.footwear || "").trim()) plan.footwear = ov.footwear.trim();
-    if ((ov.model_ethnicity || "").trim()) plan.model_ethnicity = ov.model_ethnicity.trim();
-    if ((ov.model_pose || "").trim()) plan.model_pose = ov.model_pose.trim();
-    if ((ov.model_styling_notes || "").trim()) plan.model_styling_notes = ov.model_styling_notes.trim();
+    if ((ov.occasion || "").trim()) plan.occasion = ov.occasion!.trim();
+    if ((ov.color_scheme || "").trim()) plan.color_scheme = ov.color_scheme!.trim();
+    if ((ov.background_theme || "").trim()) plan.background_theme = ov.background_theme!.trim();
+    if ((ov.footwear || "").trim()) plan.footwear = ov.footwear!.trim();
+    if ((ov.model_ethnicity || "").trim()) plan.model_ethnicity = ov.model_ethnicity!.trim();
+    if ((ov.model_pose || "").trim()) plan.model_pose = ov.model_pose!.trim();
+    if ((ov.model_styling_notes || "").trim()) plan.model_styling_notes = ov.model_styling_notes!.trim();
 
     const styleKeywords = styleKeywordsFinal.value ? parseLocalTags(styleKeywordsFinal.value) : [];
     const accessories = activeConfig.value.accessories.trim() ? parseLocalTags(activeConfig.value.accessories) : [];
@@ -1785,6 +2042,13 @@ async function retryMainImage(retryComment: string) {
       composite_prompt: compositePrompt,
       negative_prompt: plan.negative_prompt,
     };
+
+    try {
+      const thumb = await createThumbnail(runtime.resultDataUrl);
+      activeStoryboard.value.previewDataUrl = thumb;
+    } catch (e) {
+      console.warn("Failed to create thumbnail", e);
+    }
   } catch (err: any) {
     runtime.generateError = err?.message || String(err);
   } finally {

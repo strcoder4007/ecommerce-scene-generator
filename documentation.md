@@ -2,7 +2,7 @@ Automating the AI Fashion Design Workflow
 
 Repo Implementation Notes (Static / Client-Side)
 
-- The app is implemented as a 100% client-side Vue 3 dashboard (Vite). It builds to static HTML/CSS/JS in `dist/`.
+- The app is implemented as a 100% client-side Vue 3 dashboard (Vite). It builds to static HTML/CSS/JS in `docs/`.
 - The user provides their own Gemini API key in the UI (“BYO key”). The key is stored locally in the browser (localStorage) and used for direct Gemini API calls.
 - Designers can manage multiple “storyboards” (ideas). Each storyboard stores its settings (occasion, background theme, accessories, etc.) in localStorage.
 - Generated images can be saved locally in IndexedDB for quick recall under the “Saved images” page.

@@ -14,7 +14,12 @@
 
           <div v-if="runtime.prints.baseGarmentDataUrl" class="preview" style="grid-template-columns: 1fr">
             <div class="previewItem">
-              <img :src="runtime.prints.baseGarmentDataUrl" alt="White garment photo" draggable="false" />
+              <img
+                :src="runtime.prints.baseGarmentDataUrl"
+                alt="White garment photo"
+                draggable="false"
+                @click="$emit('open-image', runtime.prints.baseGarmentDataUrl, 'White garment photo')"
+              />
               <button
                 type="button"
                 class="removePreviewButton"
@@ -101,24 +106,28 @@
             />
             <input id="printDesign" type="file" accept="image/*" @change="onPrintDesignFileChange" />
 
-            <div v-if="runtime.prints.printDesignDataUrl" class="preview" style="grid-template-columns: 1fr">
-              <div class="previewItem">
-                <img :src="runtime.prints.printDesignDataUrl" alt="Print / design image" draggable="false" />
-                <button
-                  type="button"
-                  class="removePreviewButton"
-                  @click="removePrintDesign"
-                  aria-label="Remove print/design image"
-                  title="Remove image"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path d="M18 6 6 18" />
-                    <path d="M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </template>
+                        <div v-if="runtime.prints.printDesignDataUrl" class="preview" style="grid-template-columns: 1fr">
+                        <div class="previewItem">
+                          <img
+                            :src="runtime.prints.printDesignDataUrl"
+                            alt="Print / design image"
+                            draggable="false"
+                            @click="$emit('open-image', runtime.prints.printDesignDataUrl, 'Print / design image')"
+                          />
+                          <button
+                            type="button"
+                            class="removePreviewButton"
+                            @click="removePrintDesign"
+                            aria-label="Remove print/design image"
+                            title="Remove image"
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                              <path d="M18 6 6 18" />
+                              <path d="M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>          </template>
         </div>
       </div>
 
@@ -150,7 +159,12 @@
             (config.printInputKind === 'color' ? !isValidColorHex : !runtime.prints.printDesignDataUrl)
           "
         >
-          {{ runtime.prints.generating ? "Generating..." : "Generate printed garment" }}
+          <template v-if="runtime.prints.generating">
+            Generating... {{ timerText }}
+          </template>
+          <template v-else>
+            Generate Printed Garment
+          </template>
         </button>
       </div>
 
@@ -160,7 +174,12 @@
         <div class="muted" style="margin-bottom: 8px">Result</div>
         <div class="preview" style="grid-template-columns: 1fr">
           <div class="previewItem">
-            <img :src="runtime.prints.outputDataUrl" alt="Printed garment result" draggable="false" />
+            <img
+              :src="runtime.prints.outputDataUrl"
+              alt="Printed garment result"
+              draggable="false"
+              @click="$emit('open-image', runtime.prints.outputDataUrl, 'Printed garment')"
+            />
           </div>
         </div>
         <div class="resultImageButtons">
@@ -309,6 +328,7 @@ const props = defineProps<{
   onPrintDesignFileChange: (e: Event) => void;
   removeBaseGarment: () => void;
   removePrintDesign: () => void;
+  printElapsedMs?: number;
 }>();
 
 const emit = defineEmits<{
@@ -321,6 +341,15 @@ const emit = defineEmits<{
 
 const retryOpen = ref(false);
 const retryComments = ref("");
+
+const timerText = computed(() => {
+  const ms = props.printElapsedMs || 0;
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const rs = s % 60;
+  return `${m}m ${rs}s`;
+});
 
 const colorPickerValue = computed(() => normalizeHexColor(props.config.printColorHex) || "#000000");
 const isValidColorHex = computed(() => Boolean(normalizeHexColor(props.config.printColorHex)));

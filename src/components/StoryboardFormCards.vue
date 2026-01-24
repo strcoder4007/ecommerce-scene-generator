@@ -2,7 +2,7 @@
   <form class="storyboardForm" @submit.prevent="$emit('submit')">
     <fieldset class="formFieldset" :disabled="isGenerating">
       <div class="storyboardCards">
-        <div class="parameter-section">
+        <div class="parameterSection">
           <div class="sectionTitle" style="margin-top: 0">Garment photos</div>
           <div>
             <FieldLabel
@@ -27,7 +27,12 @@
                 :key="`${activeStoryboardId}-${idx}`"
                 class="previewItem"
               >
-                <img :src="src" :alt="`Garment angle ${idx + 1}`" draggable="false" />
+                <img
+                  :src="src"
+                  :alt="`Garment angle ${idx + 1}`"
+                  draggable="false"
+                  @click="$emit('open-image', src, 'Garment angle')"
+                />
                 <button
                   type="button"
                   class="removePreviewButton"
@@ -46,9 +51,49 @@
               Tip: upload 3–4 angles (front/side/back) for better accuracy.
             </div>
           </div>
+
+          <div class="chooseFromPrints" style="margin-top: 16px;">
+            <button
+              type="button"
+              class="toggle-assets-btn"
+              @click="showSavedPrints = !showSavedPrints"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                :style="{ transform: showSavedPrints ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+              <span>Choose from Printed Garments</span>
+            </button>
+            <div v-if="showSavedPrints && savedPrints.length" style="margin-top: 12px;">
+               <label>Saved Prints</label>
+               <div class="preview previewGarments">
+                <div
+                  v-for="(print, idx) in savedPrints"
+                  :key="print.id"
+                  class="previewItem"
+                  @click="addGarmentFromDataUrl(print.url, print.fileName || `print-${idx}.png`)"
+                  title="Click to add as garment"
+                >
+                   <img :src="print.url" :alt="print.title" draggable="false" />
+                </div>
+               </div>
+            </div>
+             <div v-if="showSavedPrints && !savedPrints.length" class="muted" style="margin-top: 8px;">
+              No saved prints found. Go to "Add Prints" to generate some.
+            </div>
+          </div>
         </div>
 
-        <div class="parameter-section">
+        <div class="parameterSection">
           <div class="sectionTitle" style="margin-top: 0">Creative Direction</div>
 
           <div>
@@ -142,7 +187,7 @@
           </div>
         </div>
 
-        <div class="parameter-section">
+        <div class="parameterSection">
           <div class="sectionTitle" style="margin-top: 0">Background</div>
           <div>
             <FieldLabel
@@ -171,25 +216,12 @@
                 :key="`${activeStoryboardId}-bg-ref-${idx}`"
                 class="previewItem"
               >
-                <img :src="src" :alt="`Background reference ${idx + 1}`" draggable="false" />
-                <button
-                  type="button"
-                  class="previewActionButton"
+                <img
+                  :src="src"
+                  :alt="`Background reference ${idx + 1}`"
+                  draggable="false"
                   @click="$emit('open-image', src, 'Background reference', 'Background reference')"
-                  :aria-label="`Open background reference ${idx + 1}`"
-                  title="Open image"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path d="M10 10 5 5" />
-                    <path d="M5 8V5H8" />
-                    <path d="M14 10 19 5" />
-                    <path d="M16 5h3v3" />
-                    <path d="M10 14 5 19" />
-                    <path d="M5 16v3h3" />
-                    <path d="M14 14 19 19" />
-                    <path d="M16 19h3v-3" />
-                  </svg>
-                </button>
+                />
                 <button
                   type="button"
                   class="removePreviewButton"
@@ -205,9 +237,49 @@
               </div>
             </div>
           </div>
+
+          <div class="chooseFromAssets" style="margin-top: 16px;">
+            <button
+              type="button"
+              class="toggle-assets-btn"
+              @click="showSavedBackgrounds = !showSavedBackgrounds"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                :style="{ transform: showSavedBackgrounds ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+              <span>Choose from Uploaded Backgrounds</span>
+            </button>
+            <div v-if="showSavedBackgrounds && backgroundAssetImages.length" style="margin-top: 12px;">
+               <label>Saved Backgrounds</label>
+               <div class="preview previewAssets">
+                <div
+                  v-for="(asset, idx) in backgroundAssetImages"
+                  :key="asset.id"
+                  class="previewItem"
+                  @click="addBackgroundFromDataUrl(asset.url, asset.fileName || `bg-asset-${idx}.png`)"
+                  title="Click to add as background"
+                >
+                   <img :src="asset.url" :alt="asset.title" draggable="false" />
+                </div>
+               </div>
+            </div>
+             <div v-if="showSavedBackgrounds && !backgroundAssetImages.length" class="muted" style="margin-top: 8px;">
+              No uploaded backgrounds found. Go to "Uploaded Assets" to add some.
+            </div>
+          </div>
         </div>
 
-        <div class="parameter-section">
+        <div class="parameterSection">
           <div class="sectionTitle" style="margin-top: 0">Model</div>
           <div>
             <FieldLabel
@@ -280,25 +352,12 @@
                 :key="`${activeStoryboardId}-model-ref-${idx}`"
                 class="previewItem"
               >
-                <img :src="src" :alt="`Model reference ${idx + 1}`" draggable="false" />
-                <button
-                  type="button"
-                  class="previewActionButton"
+                <img
+                  :src="src"
+                  :alt="`Model reference ${idx + 1}`"
+                  draggable="false"
                   @click="$emit('open-image', src, 'Model reference', 'Model reference')"
-                  :aria-label="`Open model reference ${idx + 1}`"
-                  title="Open image"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path d="M10 10 5 5" />
-                    <path d="M5 8V5H8" />
-                    <path d="M14 10 19 5" />
-                    <path d="M16 5h3v3" />
-                    <path d="M10 14 5 19" />
-                    <path d="M5 16v3h3" />
-                    <path d="M14 14 19 19" />
-                    <path d="M16 19h3v-3" />
-                  </svg>
-                </button>
+                />
                 <button
                   type="button"
                   class="removePreviewButton"
@@ -312,6 +371,46 @@
                   </svg>
                 </button>
               </div>
+            </div>
+          </div>
+
+          <div class="chooseFromAssets" style="margin-top: 16px;">
+            <button
+              type="button"
+              class="toggle-assets-btn"
+              @click="showSavedModels = !showSavedModels"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                :style="{ transform: showSavedModels ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+              <span>Choose from Uploaded Models</span>
+            </button>
+            <div v-if="showSavedModels && modelAssetImages.length" style="margin-top: 12px;">
+               <label>Saved Models</label>
+               <div class="preview previewAssets">
+                <div
+                  v-for="(asset, idx) in modelAssetImages"
+                  :key="asset.id"
+                  class="previewItem"
+                  @click="addModelFromDataUrl(asset.url, asset.fileName || `model-asset-${idx}.png`)"
+                  title="Click to add as model"
+                >
+                   <img :src="asset.url" :alt="asset.title" draggable="false" />
+                </div>
+               </div>
+            </div>
+             <div v-if="showSavedModels && !modelAssetImages.length" class="muted" style="margin-top: 8px;">
+              No uploaded models found. Go to "Uploaded Assets" to add some.
             </div>
           </div>
         </div>
@@ -363,6 +462,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import FieldLabel from "./FieldLabel.vue";
 import PillRadioGroup from "./PillRadioGroup.vue";
 import type { StoryboardConfig } from "../lib/storyboards";
@@ -386,6 +486,13 @@ type RuntimeLite = {
   debugSummary: any;
 };
 
+type SavedPrint = {
+  id: string;
+  url: string;
+  title: string;
+  fileName?: string;
+};
+
 defineProps<{
   config: StoryboardConfig;
   runtime: RuntimeLite;
@@ -395,10 +502,48 @@ defineProps<{
   removeGarmentImage: (idx: number) => void;
   removeBackgroundImage: (idx: number) => void;
   removeModelImage: (idx: number) => void;
+  savedPrints: SavedPrint[];
+  backgroundAssetImages: SavedPrint[];
+  modelAssetImages: SavedPrint[];
+  addGarmentFromDataUrl: (url: string, fileName: string) => void;
+  addBackgroundFromDataUrl: (url: string, fileName: string) => void;
+  addModelFromDataUrl: (url: string, fileName: string) => void;
 }>();
 
 defineEmits<{
   (e: "submit"): void;
   (e: "open-image", src: string, title: string, alt?: string): void;
 }>();
+
+const showSavedPrints = ref(false);
+const showSavedBackgrounds = ref(false);
+const showSavedModels = ref(false);
 </script>
+
+<style scoped>
+.toggle-assets-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0.85;
+  transition: opacity 0.2s ease;
+}
+
+.toggle-assets-btn:hover {
+  opacity: 1;
+  text-decoration: none;
+}
+
+.toggle-assets-btn svg {
+  width: 16px;
+  height: 16px;
+  opacity: 0.7;
+}
+</style>

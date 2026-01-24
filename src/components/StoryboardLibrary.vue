@@ -31,6 +31,9 @@
             <template v-if="runtimeById[sb.id]?.resultDataUrl">
               <img :src="runtimeById[sb.id]?.resultDataUrl ?? undefined" alt="" draggable="false" />
             </template>
+            <template v-else-if="sb.previewDataUrl">
+              <img :src="sb.previewDataUrl" alt="" draggable="false" />
+            </template>
             <template v-else-if="runtimeById[sb.id]?.garmentDataUrls?.length">
               <img :src="runtimeById[sb.id]?.garmentDataUrls?.[0] ?? undefined" alt="" draggable="false" />
             </template>
