@@ -69,6 +69,38 @@ body {
   min-height: 100vh;
 }
 
+.saveToast {
+  position: fixed;
+  top: 20px;
+  right: 24px;
+  z-index: 40;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: var(--shadow-sm);
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 180ms ease, transform 180ms ease;
+  pointer-events: none;
+}
+
+.saveToastVisible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (max-width: 720px) {
+  .saveToast {
+    left: 16px;
+    right: 16px;
+    text-align: center;
+  }
+}
+
 .sidebar {
   align-self: start;
   height: 100vh;

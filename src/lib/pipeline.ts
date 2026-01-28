@@ -407,34 +407,32 @@ export function buildPrintApplicationPrompt(opts: {
     );
   } else {
     lines.push(
-      "You are a senior apparel print designer + production retoucher for an ecommerce fashion company.",
-      "This is an IMAGE EDIT task: keep the base photo realistic and unchanged except for the garment fabric print.",
-      "IMAGE 1 is the BASE GARMENT PHOTO (a plain white garment worn by a mannequin).",
-      "IMAGE 2 is the PRINT/DESIGN artwork to apply to the garment fabric (may be a repeating pattern, a centered graphic, or a solid color swatch image).",
+      "You are a professional apparel photo retoucher for an ecommerce fashion company.",
+      "This is a STRICT IMAGE EDIT: only the garment pixels may change; everything else must stay identical.",
+      "IMAGE 1 is the BASE GARMENT PHOTO (a plain garment on a mannequin).",
+      "IMAGE 2 is the PRINT/DESIGN artwork to apply to the garment fabric.",
       "",
-      "Photo quality requirements:",
-      "- Output must preserve the exact composition of IMAGE 1 (same mannequin, pose, background, lighting, shadows, wrinkles, camera angle).",
-      "- Do NOT crop or reframe. Keep the same aspect ratio and framing as IMAGE 1.",
-      "- Only the garment fabric appearance should change.",
-      "- Photorealistic, high resolution, crisp detail; no blur; no noise; do not add new text/watermarks.",
+      "What the design means (reference examples):",
+      "- Painterly animal-inspired blotches: warm brown/rust fields with cream shapes (leopard-like, organic edges).",
+      "- Watercolor floral blobs: teal/green/peach soft shapes with subtle horizontal scanline texture.",
+      "- Small irregular cream oval dots on a dark brown ground (dense, even repeat).",
+      "Treat IMAGE 2 as flat artwork only; it is NOT a background photo.",
       "",
-      "Task:",
-      "- Output the SAME base photo as IMAGE 1, but with the print/design applied to the garment fabric.",
-      "- Keep the mannequin visible (do not remove it) and keep the background unchanged.",
+      "Non-negotiable rules:",
+      "- Create a precise GARMENT MASK from IMAGE 1 (follow silhouette, seams, hems, neckline, cutouts).",
+      "- Clip the print strictly inside the garment mask. The print must NEVER appear on the mannequin or the background.",
+      "- Pixel lock: every pixel outside the garment mask must remain IDENTICAL to IMAGE 1.",
+      "- Preserve garment construction and fit (no shape, length, or seam changes).",
+      "- Preserve lighting, wrinkles, and fabric texture; the print must follow folds and shadows so it looks printed into the fabric.",
       "",
-      "Critical layering (fix common failure):",
-      "- The print must be ON the garment fabric (like ink), NOT behind the garment and NOT used as a background poster.",
-      "- The print must be clipped strictly inside the garment fabric region; it must never appear outside the garment silhouette, never on the mannequin, and never in the background.",
-      "- Use IMAGE 2 only as the source of the print pattern/graphic; do not paste IMAGE 2 as a separate layer behind the garment.",
+      "Placement and scale:",
+      "- If IMAGE 2 is a repeating pattern, tile it evenly across the garment at a realistic textile scale.",
+      "- If IMAGE 2 is a centered graphic, place it centered on the chest/torso at a natural size.",
+      "- If IMAGE 2 is a solid color swatch, recolor the garment fabric to that color while preserving highlights/shadows and texture.",
       "",
-      "Hard rules:",
-      "- Preserve the garment silhouette and construction exactly (neckline, sleeves, hem, seams, closures, texture). Do not change fit, length, or shape.",
-      "- Do NOT change anything outside the garment area (no changes to mannequin, hands, background, lighting, shadows, camera, or edges).",
-      "- Do NOT add extra fabric, extra layers, or new garment elements.",
-      "- Apply the print ONLY to the garment fabric (not on mannequin/skin/background).",
-      "- Placement: if IMAGE 2 is a centered graphic/logo, place it centered on the front chest/torso area (not oversized). If IMAGE 2 is a repeating pattern, tile it across the garment fabric evenly.",
-      "- Print realism: correct scale; follow seams/panels; wrap with folds and perspective; preserve the original garment shading/highlights and fabric texture (DTG/screen print look). Avoid distortion/warping.",
-      "- If the print image is a solid color swatch, recolor the garment fabric to that color while preserving highlights/shadows and fabric texture.",
+      "Output requirements:",
+      "- Deliver a single photorealistic high-resolution image with the same dimensions and framing as IMAGE 1.",
+      "- No background changes, no mannequin changes, no added text or watermarks."
     );
   }
   if (extra) {
@@ -442,7 +440,7 @@ export function buildPrintApplicationPrompt(opts: {
   }
   lines.push(
     "",
-    "Avoid: print behind garment, print used as background, any background change, mannequin changes, pose changes, cropping/reframing, altered garment shape, added fabric, added layers, print bleeding onto mannequin/background, warped print, wrong print scale, unintended patterns, low-res, blur, new text overlay, new watermark.",
+    "Avoid: print behind garment, print used as background, any background change, mannequin changes, pose changes, cropping/reframing, altered garment shape, added fabric, added layers, print bleeding onto mannequin/background, any pixel changes outside the garment mask, warped print, wrong print scale, unintended patterns, low-res, blur, new text overlay, new watermark.",
   );
   return lines.join("\n").trim();
 }

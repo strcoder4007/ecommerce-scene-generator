@@ -1,5 +1,14 @@
 <template>
   <div class="appRoot">
+    <div
+      class="saveToast"
+      :class="{ saveToastVisible: saveToast.visible }"
+      role="status"
+      aria-live="polite"
+      :aria-hidden="!saveToast.visible"
+    >
+      {{ saveToast.message }}
+    </div>
     <div class="appShell">
       <aside class="sidebar">
         <div class="sidebarBrand">
@@ -678,6 +687,18 @@ const imageModal = ref<ImageModalState | null>(null);
 
 type SavedImageView = SavedImageRecord & { url: string };
 const savedImages = ref<SavedImageView[]>([]);
+
+const saveToast = ref({ visible: false, message: "" });
+let saveToastTimer: number | null = null;
+
+function showSaveToast(message: string) {
+  saveToast.value.message = message;
+  saveToast.value.visible = true;
+  if (saveToastTimer) window.clearTimeout(saveToastTimer);
+  saveToastTimer = window.setTimeout(() => {
+    saveToast.value.visible = false;
+  }, 2200);
+}
 
 function toSavedImageView(record: SavedImageRecord): SavedImageView {
   return { ...record, url: URL.createObjectURL(record.blob) };
@@ -1385,6 +1406,7 @@ onBeforeUnmount(() => {
   if (generationInterval) window.clearInterval(generationInterval);
   if (printGenerationInterval) window.clearInterval(printGenerationInterval);
   if (storyboardSaveTimer) window.clearTimeout(storyboardSaveTimer);
+  if (saveToastTimer) window.clearTimeout(saveToastTimer);
   window.removeEventListener("keydown", onGlobalKeyDown);
   for (const img of savedImages.value) {
     URL.revokeObjectURL(img.url);
@@ -1433,6 +1455,7 @@ async function saveImageToLibrary(opts: {
   title: string;
   kind: string;
   fileName?: string;
+  notify?: boolean;
 }) {
   const parsed = dataUrlToBlob(opts.dataUrl);
   const record = await saveImageRecord({
@@ -1445,6 +1468,9 @@ async function saveImageToLibrary(opts: {
     blob: parsed.blob,
   });
   savedImages.value = [toSavedImageView(record), ...savedImages.value];
+  if (opts.notify !== false) {
+    showSaveToast("Saved to library.");
+  }
 }
 
 async function saveMainImage() {
@@ -1482,6 +1508,7 @@ async function saveAllImages() {
         title: `Look — ${activeStoryboard.value.title}`,
         kind: "main",
         fileName: `look-main-${ts}.${mimeToExtension(runtime.resultMimeType)}`,
+        notify: false,
       }),
       saveImageToLibrary({
         dataUrl: runtime.angles.sideDataUrl,
@@ -1489,6 +1516,7 @@ async function saveAllImages() {
         title: `Side view — ${activeStoryboard.value.title}`,
         kind: "side",
         fileName: `look-side-${ts}.${mimeToExtension(runtime.angles.sideMimeType)}`,
+        notify: false,
       }),
       saveImageToLibrary({
         dataUrl: runtime.angles.backDataUrl,
@@ -1496,8 +1524,10 @@ async function saveAllImages() {
         title: `Back view — ${activeStoryboard.value.title}`,
         kind: "back",
         fileName: `look-back-${ts}.${mimeToExtension(runtime.angles.backMimeType)}`,
+        notify: false,
       }),
     ]);
+    showSaveToast("Saved 3 images.");
   } catch (err: any) {
     runtime.angles.error = err?.message || String(err);
   }
