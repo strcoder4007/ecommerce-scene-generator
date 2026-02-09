@@ -118,7 +118,7 @@
 
           <div style="height: 40px" />
 
-          <div class="row">
+          <div>
             <div>
               <FieldLabel
                 label="Color scheme"
@@ -131,16 +131,24 @@
                 placeholder="e.g. red & white, pastel, neutral, monochrome"
               />
             </div>
+            <div style="height: 40px" />
             <div>
               <FieldLabel
                 label="Accessories"
-                info="Optional add-ons to make the scene feel complete (e.g., sunglasses, tote bag, heels). Keep it realistic and not too many items."
+                info="Optional add-ons to make the scene feel complete. Pick a few presets and/or type your own. Keep it realistic (0–3) and don’t let accessories cover the garment."
               />
+              <div class="pillGroup" role="group" aria-label="Accessories presets" style="margin-top: 8px">
+                <label v-for="opt in accessoriesPresetOptions" :key="opt.value" class="pill">
+                  <input type="checkbox" :value="opt.value" v-model="accessoriesSelected" />
+                  <span>{{ opt.label }}</span>
+                </label>
+              </div>
+              <div style="height: 14px" />
               <input
                 class="control"
                 type="text"
                 v-model="config.accessories"
-                placeholder="comma separated, e.g. straw hat, sandals"
+                placeholder="Optional: add custom accessories (comma separated)"
               />
             </div>
           </div>
@@ -168,21 +176,21 @@
 
           <div>
             <FieldLabel
-              label="Overall Style"
-              info="Pick a modern ecommerce styling direction (e.g., quiet luxury, streetwear). You can also add extra keywords below."
+              label="Bottom Wear"
+              info="Choose a bottom-wear pairing for the look. Pick a preset and optionally add details (e.g., “white pleated pants”, “denim mini skirt”)."
             />
             <PillRadioGroup
-              name="styleKeywords"
-              :model-value="config.stylePreset"
-              @update:model-value="config.stylePreset = $event"
-              :options="stylePresetOptions"
+              name="bottomWear"
+              :model-value="config.bottomWearPreset"
+              @update:model-value="config.bottomWearPreset = $event"
+              :options="bottomWearPresetOptions"
             />
             <div style="height: 14px" />
             <input
               class="control"
               type="text"
-              v-model="config.styleKeywordsDetails"
-              placeholder="Optional: add style keywords (comma separated)"
+              v-model="config.bottomWearDetails"
+              placeholder="Optional: add details or type a custom bottom wear"
             />
           </div>
         </div>
@@ -462,7 +470,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import FieldLabel from "./FieldLabel.vue";
 import PillRadioGroup from "./PillRadioGroup.vue";
 import type { StoryboardConfig } from "../lib/storyboards";
@@ -473,7 +481,6 @@ import {
   modelPosePresetOptions,
   modelStylingPresetOptions,
   occasionPresetOptions,
-  stylePresetOptions,
 } from "../lib/presets";
 
 type RuntimeLite = {
@@ -493,7 +500,7 @@ type SavedPrint = {
   fileName?: string;
 };
 
-defineProps<{
+const props = defineProps<{
   config: StoryboardConfig;
   runtime: RuntimeLite;
   activeStoryboardId: string;
@@ -518,6 +525,68 @@ defineEmits<{
 const showSavedPrints = ref(false);
 const showSavedBackgrounds = ref(false);
 const showSavedModels = ref(false);
+
+const bottomWearPresetOptions = [
+  { value: "", label: "Auto" },
+  { value: "bell bottom", label: "Bell bottom" },
+  { value: "pleated pants", label: "Pleated pants" },
+  { value: "skirts", label: "Skirts" },
+  { value: "shorts", label: "Shorts" },
+  { value: "skorts", label: "Skorts" },
+  { value: "denim jeans wide", label: "Denim jeans wide" },
+  { value: "custom", label: "Custom" },
+];
+
+const accessoriesPresetOptions = [
+  { value: "studs", label: "Studs" },
+  { value: "resin bracelets", label: "Resin bracelets" },
+  { value: "earrings", label: "Earrings" },
+  { value: "chunky gold earrings", label: "Chunky gold earrings" },
+  { value: "chunky silver earrings", label: "Chunky silver earrings" },
+  { value: "handbag clutch", label: "Handbag clutch" },
+  { value: "sunglasses", label: "Sunglasses" },
+];
+
+function normalizeToken(value: string): string {
+  return (value || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function parseTokenList(raw: string): string[] {
+  return (raw || "")
+    .split(/[;,]/g)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+const accessoriesSelected = computed<string[]>({
+  get() {
+    const rawTokens = parseTokenList(props.config.accessories);
+    const canonicalByNorm = new Map(accessoriesPresetOptions.map((o) => [normalizeToken(o.value), o.value]));
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const t of rawTokens) {
+      const norm = normalizeToken(t);
+      const canonical = canonicalByNorm.get(norm) ?? t.trim();
+      const key = normalizeToken(canonical);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(canonical);
+    }
+    return out;
+  },
+  set(values) {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const v of values) {
+      const token = (v || "").trim();
+      const key = normalizeToken(token);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(token);
+    }
+    props.config.accessories = out.join(", ");
+  },
+});
 </script>
 
 <style scoped>

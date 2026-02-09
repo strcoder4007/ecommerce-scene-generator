@@ -498,6 +498,16 @@ function combinePresetAndCustom(opts: { presetText: string; customText: string; 
   return `${p}${opts.joiner ?? ", "}${c}`;
 }
 
+function combineBottomWear(preset: string, details: string, isCustom: boolean): string {
+  const p = (preset || "").trim();
+  const d = (details || "").trim();
+  if (isCustom) return d;
+  if (!p) return d;
+  if (!d) return p;
+  if (d.toLowerCase().includes(p.toLowerCase())) return d;
+  return `${d} ${p}`.trim();
+}
+
 function createColorSwatchDataUrl(hexColor: string): string {
   const canvas = document.createElement("canvas");
   const size = 96;
@@ -826,6 +836,10 @@ function requireApiKey(setError?: (message: string) => void): string | null {
 
 		  const accessories = cfg.accessories.trim();
 		  if (accessories) parts.push(`Accessories: ${accessories}`);
+
+		  const bottomWear =
+		    combineBottomWear(cfg.bottomWearPreset, cfg.bottomWearDetails, cfg.bottomWearPreset === "custom");
+		  if (bottomWear) parts.push(`Bottom wear: ${bottomWear}`);
 
 			  const footwearPresetLabel =
 			    cfg.footwearPreset && cfg.footwearPreset !== "custom"
@@ -1712,6 +1726,14 @@ const footwearFinal = computed(() =>
       }),
 );
 
+const bottomWearFinal = computed(() =>
+  combineBottomWear(
+    activeConfig.value.bottomWearPreset,
+    activeConfig.value.bottomWearDetails,
+    activeConfig.value.bottomWearPreset === "custom",
+  ),
+);
+
 const stylePresetText = computed(() =>
   activeConfig.value.stylePreset && activeConfig.value.stylePreset !== "custom"
     ? activeConfig.value.stylePreset
@@ -1816,7 +1838,9 @@ async function onGenerateLook() {
       model_styling_notes: modelStylingNotesFinal.value || null,
     };
 
-    const styleKeywords = styleKeywordsFinal.value ? parseLocalTags(styleKeywordsFinal.value) : [];
+    const baseStyleKeywords = styleKeywordsFinal.value ? parseLocalTags(styleKeywordsFinal.value) : [];
+    const bottomWear = bottomWearFinal.value.trim();
+    const styleKeywords = bottomWear ? [...baseStyleKeywords, bottomWear] : baseStyleKeywords;
     const accessories = activeConfig.value.accessories.trim() ? parseLocalTags(activeConfig.value.accessories) : [];
     const modelRefDataUrl = runtime.modelDataUrls[0] || null;
     const backgroundRefDataUrl = runtime.backgroundDataUrls[0] || null;
@@ -2007,7 +2031,9 @@ async function retryMainImage(retryComment: string) {
     if ((ov.model_pose || "").trim()) plan.model_pose = ov.model_pose!.trim();
     if ((ov.model_styling_notes || "").trim()) plan.model_styling_notes = ov.model_styling_notes!.trim();
 
-    const styleKeywords = styleKeywordsFinal.value ? parseLocalTags(styleKeywordsFinal.value) : [];
+    const baseStyleKeywords = styleKeywordsFinal.value ? parseLocalTags(styleKeywordsFinal.value) : [];
+    const bottomWear = bottomWearFinal.value.trim();
+    const styleKeywords = bottomWear ? [...baseStyleKeywords, bottomWear] : baseStyleKeywords;
     const accessories = activeConfig.value.accessories.trim() ? parseLocalTags(activeConfig.value.accessories) : [];
     plan = applyFreeformOverrides(plan, {
       styleKeywords: styleKeywords.length ? styleKeywords : undefined,

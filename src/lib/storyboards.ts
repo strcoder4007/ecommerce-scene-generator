@@ -63,6 +63,8 @@ export type StoryboardConfig = {
   occasionDetails: string;
   colorScheme: string;
   accessories: string;
+  bottomWearPreset: string;
+  bottomWearDetails: string;
   printInputKind: "image" | "color";
   printColorHex: string;
   printAdditionalPrompt: string;
@@ -96,6 +98,8 @@ export function createDefaultStoryboardConfig(): StoryboardConfig {
     occasionDetails: "",
     colorScheme: "",
     accessories: "",
+    bottomWearPreset: "",
+    bottomWearDetails: "",
     printInputKind: "image",
     printColorHex: "",
     printAdditionalPrompt: "",
@@ -247,6 +251,8 @@ function normalizeConfig(value: unknown): StoryboardConfig {
     occasionDetails: asString(raw.occasionDetails) ?? base.occasionDetails,
     colorScheme: asString(raw.colorScheme) ?? base.colorScheme,
     accessories: asString(raw.accessories) ?? base.accessories,
+    bottomWearPreset: asString(raw.bottomWearPreset) ?? base.bottomWearPreset,
+    bottomWearDetails: asString(raw.bottomWearDetails) ?? base.bottomWearDetails,
     printInputKind: normalizedPrintInputKind,
     printColorHex: normalizedPrintColorHex,
     printAdditionalPrompt: asString(raw.printAdditionalPrompt) ?? base.printAdditionalPrompt,
