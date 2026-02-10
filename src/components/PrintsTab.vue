@@ -8,14 +8,14 @@
           <FieldLabel
             htmlFor="printBaseGarmentFront"
             label="White garment photos"
-            info="Upload the front view (required) and optional back/side views of the same white garment."
+            info="Upload front, back, and side views of the same white garment."
           />
           <div style="display: grid; gap: 12px">
             <div>
               <FieldLabel
                 htmlFor="printBaseGarmentFront"
                 label="Front view (required)"
-                info="The front view is required and will be used as fallback for missing angles."
+                info="The front view is required."
               />
               <input id="printBaseGarmentFront" type="file" accept="image/*" @change="onBaseGarmentFrontFileChange" />
 
@@ -45,8 +45,8 @@
             <div>
               <FieldLabel
                 htmlFor="printBaseGarmentBack"
-                label="Back view (optional)"
-                info="Optional back view of the same garment."
+                label="Back view (required)"
+                info="The back view is required."
               />
               <input id="printBaseGarmentBack" type="file" accept="image/*" @change="onBaseGarmentBackFileChange" />
 
@@ -77,8 +77,8 @@
             <div>
               <FieldLabel
                 htmlFor="printBaseGarmentSide"
-                label="Side view (optional)"
-                info="Optional side view of the same garment."
+                label="Side view (required)"
+                info="The side view is required."
               />
               <input id="printBaseGarmentSide" type="file" accept="image/*" @change="onBaseGarmentSideFileChange" />
 
@@ -228,6 +228,8 @@
           :disabled="
             isBusy ||
             !runtime.prints.baseGarmentFrontDataUrl ||
+            !runtime.prints.baseGarmentBackDataUrl ||
+            !runtime.prints.baseGarmentSideDataUrl ||
             (config.printInputKind === 'color' ? !isValidColorHex : !runtime.prints.printDesignDataUrl)
           "
         >

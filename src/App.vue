@@ -1412,6 +1412,14 @@ async function generatePrintedGarment(retryComment?: string) {
     runtime.prints.error = "Please upload a front view white garment photo.";
     return;
   }
+  if (!runtime.prints.baseGarmentBackDataUrl) {
+    runtime.prints.error = "Please upload a back view white garment photo.";
+    return;
+  }
+  if (!runtime.prints.baseGarmentSideDataUrl) {
+    runtime.prints.error = "Please upload a side view white garment photo.";
+    return;
+  }
 
   const printInputKind = activeConfig.value.printInputKind;
   const printColorHex =
@@ -1444,8 +1452,8 @@ async function generatePrintedGarment(retryComment?: string) {
     });
 
     const baseFront = runtime.prints.baseGarmentFrontDataUrl;
-    const baseBack = runtime.prints.baseGarmentBackDataUrl || baseFront;
-    const baseSide = runtime.prints.baseGarmentSideDataUrl || baseFront;
+    const baseBack = runtime.prints.baseGarmentBackDataUrl;
+    const baseSide = runtime.prints.baseGarmentSideDataUrl;
 
     const t0 = performance.now();
     const frontOut = await generateImage({
