@@ -74,9 +74,13 @@
               :runtime="activeRuntime"
               :is-busy="isGenerating || activeRuntime.prints.generating"
               :mime-to-extension="mimeToExtension"
-              :on-base-garment-file-change="onPrintBaseGarmentFileChange"
+              :on-base-garment-front-file-change="onPrintBaseGarmentFrontFileChange"
+              :on-base-garment-back-file-change="onPrintBaseGarmentBackFileChange"
+              :on-base-garment-side-file-change="onPrintBaseGarmentSideFileChange"
               :on-print-design-file-change="onPrintDesignFileChange"
-              :remove-base-garment="removePrintBaseGarment"
+              :remove-base-garment-front="removePrintBaseGarmentFront"
+              :remove-base-garment-back="removePrintBaseGarmentBack"
+              :remove-base-garment-side="removePrintBaseGarmentSide"
               :remove-print-design="removePrintDesign"
               :print-elapsed-ms="printGenerationElapsedMs"
               @generate="generatePrintedGarment"
@@ -580,12 +584,20 @@ watch(
 			};
 
 			type StoryboardPrintsRuntime = {
-			  baseGarmentDataUrl: string | null;
-			  baseGarmentFileName: string | null;
+			  baseGarmentFrontDataUrl: string | null;
+			  baseGarmentFrontFileName: string | null;
+			  baseGarmentBackDataUrl: string | null;
+			  baseGarmentBackFileName: string | null;
+			  baseGarmentSideDataUrl: string | null;
+			  baseGarmentSideFileName: string | null;
 			  printDesignDataUrl: string | null;
 			  printDesignFileName: string | null;
-			  outputDataUrl: string | null;
-			  outputMimeType: string | null;
+			  outputFrontDataUrl: string | null;
+			  outputFrontMimeType: string | null;
+			  outputBackDataUrl: string | null;
+			  outputBackMimeType: string | null;
+			  outputSideDataUrl: string | null;
+			  outputSideMimeType: string | null;
 			  generating: boolean;
 			  error: string | null;
 			  timingsMs: number | null;
@@ -626,12 +638,20 @@ watch(
 
 			function createDefaultPrintsRuntime(): StoryboardPrintsRuntime {
 			  return {
-			    baseGarmentDataUrl: null,
-			    baseGarmentFileName: null,
+			    baseGarmentFrontDataUrl: null,
+			    baseGarmentFrontFileName: null,
+			    baseGarmentBackDataUrl: null,
+			    baseGarmentBackFileName: null,
+			    baseGarmentSideDataUrl: null,
+			    baseGarmentSideFileName: null,
 			    printDesignDataUrl: null,
 			    printDesignFileName: null,
-			    outputDataUrl: null,
-			    outputMimeType: null,
+			    outputFrontDataUrl: null,
+			    outputFrontMimeType: null,
+			    outputBackDataUrl: null,
+			    outputBackMimeType: null,
+			    outputSideDataUrl: null,
+			    outputSideMimeType: null,
 			    generating: false,
 			    error: null,
 			    timingsMs: null,
@@ -1247,7 +1267,18 @@ async function onModelFileChange(e: Event) {
   if (input) input.value = "";
 }
 
-async function onPrintBaseGarmentFileChange(e: Event) {
+function resetPrintOutputs() {
+  const prints = activeRuntime.value.prints;
+  prints.outputFrontDataUrl = null;
+  prints.outputFrontMimeType = null;
+  prints.outputBackDataUrl = null;
+  prints.outputBackMimeType = null;
+  prints.outputSideDataUrl = null;
+  prints.outputSideMimeType = null;
+  prints.timingsMs = null;
+}
+
+async function onPrintBaseGarmentFrontFileChange(e: Event) {
   const input = e.target as HTMLInputElement | null;
   const file = input?.files?.[0] ?? null;
   const runtime = activeRuntime.value;
@@ -1258,11 +1289,45 @@ async function onPrintBaseGarmentFileChange(e: Event) {
     return;
   }
 
-  runtime.prints.baseGarmentFileName = file.name || "base-garment";
-  runtime.prints.baseGarmentDataUrl = await fileToDataUrl(file);
-  runtime.prints.outputDataUrl = null;
-  runtime.prints.outputMimeType = null;
-  runtime.prints.timingsMs = null;
+  runtime.prints.baseGarmentFrontFileName = file.name || "base-garment-front";
+  runtime.prints.baseGarmentFrontDataUrl = await fileToDataUrl(file);
+  resetPrintOutputs();
+
+  if (input) input.value = "";
+}
+
+async function onPrintBaseGarmentBackFileChange(e: Event) {
+  const input = e.target as HTMLInputElement | null;
+  const file = input?.files?.[0] ?? null;
+  const runtime = activeRuntime.value;
+  runtime.prints.error = null;
+
+  if (!file) {
+    if (input) input.value = "";
+    return;
+  }
+
+  runtime.prints.baseGarmentBackFileName = file.name || "base-garment-back";
+  runtime.prints.baseGarmentBackDataUrl = await fileToDataUrl(file);
+  resetPrintOutputs();
+
+  if (input) input.value = "";
+}
+
+async function onPrintBaseGarmentSideFileChange(e: Event) {
+  const input = e.target as HTMLInputElement | null;
+  const file = input?.files?.[0] ?? null;
+  const runtime = activeRuntime.value;
+  runtime.prints.error = null;
+
+  if (!file) {
+    if (input) input.value = "";
+    return;
+  }
+
+  runtime.prints.baseGarmentSideFileName = file.name || "base-garment-side";
+  runtime.prints.baseGarmentSideDataUrl = await fileToDataUrl(file);
+  resetPrintOutputs();
 
   if (input) input.value = "";
 }
@@ -1280,20 +1345,32 @@ async function onPrintDesignFileChange(e: Event) {
 
   runtime.prints.printDesignFileName = file.name || "print-design";
   runtime.prints.printDesignDataUrl = await fileToDataUrl(file);
-  runtime.prints.outputDataUrl = null;
-  runtime.prints.outputMimeType = null;
-  runtime.prints.timingsMs = null;
+  resetPrintOutputs();
 
   if (input) input.value = "";
 }
 
-function removePrintBaseGarment() {
+function removePrintBaseGarmentFront() {
   const runtime = activeRuntime.value;
-  runtime.prints.baseGarmentDataUrl = null;
-  runtime.prints.baseGarmentFileName = null;
-  runtime.prints.outputDataUrl = null;
-  runtime.prints.outputMimeType = null;
-  runtime.prints.timingsMs = null;
+  runtime.prints.baseGarmentFrontDataUrl = null;
+  runtime.prints.baseGarmentFrontFileName = null;
+  resetPrintOutputs();
+  runtime.prints.error = null;
+}
+
+function removePrintBaseGarmentBack() {
+  const runtime = activeRuntime.value;
+  runtime.prints.baseGarmentBackDataUrl = null;
+  runtime.prints.baseGarmentBackFileName = null;
+  resetPrintOutputs();
+  runtime.prints.error = null;
+}
+
+function removePrintBaseGarmentSide() {
+  const runtime = activeRuntime.value;
+  runtime.prints.baseGarmentSideDataUrl = null;
+  runtime.prints.baseGarmentSideFileName = null;
+  resetPrintOutputs();
   runtime.prints.error = null;
 }
 
@@ -1301,9 +1378,7 @@ function removePrintDesign() {
   const runtime = activeRuntime.value;
   runtime.prints.printDesignDataUrl = null;
   runtime.prints.printDesignFileName = null;
-  runtime.prints.outputDataUrl = null;
-  runtime.prints.outputMimeType = null;
-  runtime.prints.timingsMs = null;
+  resetPrintOutputs();
   runtime.prints.error = null;
 }
 
@@ -1333,8 +1408,8 @@ async function generatePrintedGarment(retryComment?: string) {
   });
   if (!apiKeyValue) return;
 
-  if (!runtime.prints.baseGarmentDataUrl) {
-    runtime.prints.error = "Please upload a white garment photo.";
+  if (!runtime.prints.baseGarmentFrontDataUrl) {
+    runtime.prints.error = "Please upload a front view white garment photo.";
     return;
   }
 
@@ -1353,9 +1428,7 @@ async function generatePrintedGarment(retryComment?: string) {
   }
 
   runtime.prints.generating = true;
-  runtime.prints.outputDataUrl = null;
-  runtime.prints.outputMimeType = null;
-  runtime.prints.timingsMs = null;
+  resetPrintOutputs();
   startPrintGenerationTimer();
 
   try {
@@ -1363,7 +1436,6 @@ async function generatePrintedGarment(retryComment?: string) {
       printInputKind === "color"
         ? createColorSwatchDataUrl(printColorHex!)
         : runtime.prints.printDesignDataUrl!;
-    const baseInline = dataUrlToInlineImage(runtime.prints.baseGarmentDataUrl);
     const printInline = dataUrlToInlineImage(printDesignDataUrl);
     const prompt = buildPrintApplicationPrompt({
       additionalPrompt: activeConfig.value.printAdditionalPrompt || "",
@@ -1371,18 +1443,40 @@ async function generatePrintedGarment(retryComment?: string) {
       ...(printColorHex ? { colorHex: printColorHex } : {}),
     });
 
+    const baseFront = runtime.prints.baseGarmentFrontDataUrl;
+    const baseBack = runtime.prints.baseGarmentBackDataUrl || baseFront;
+    const baseSide = runtime.prints.baseGarmentSideDataUrl || baseFront;
+
     const t0 = performance.now();
-    const out = await generateImage({
+    const frontOut = await generateImage({
       apiKey: apiKeyValue,
       model: "gemini-3-pro-image-preview",
       promptText: prompt,
-      images: [baseInline, printInline],
+      images: [dataUrlToInlineImage(baseFront), printInline],
+      timeoutMs: 180000,
+    });
+    const backOut = await generateImage({
+      apiKey: apiKeyValue,
+      model: "gemini-3-pro-image-preview",
+      promptText: prompt,
+      images: [dataUrlToInlineImage(baseBack), printInline],
+      timeoutMs: 180000,
+    });
+    const sideOut = await generateImage({
+      apiKey: apiKeyValue,
+      model: "gemini-3-pro-image-preview",
+      promptText: prompt,
+      images: [dataUrlToInlineImage(baseSide), printInline],
       timeoutMs: 180000,
     });
     const ms = Math.round(performance.now() - t0);
 
-    runtime.prints.outputMimeType = out.mimeType;
-    runtime.prints.outputDataUrl = `data:${out.mimeType};base64,${out.imageBase64}`;
+    runtime.prints.outputFrontMimeType = frontOut.mimeType;
+    runtime.prints.outputFrontDataUrl = `data:${frontOut.mimeType};base64,${frontOut.imageBase64}`;
+    runtime.prints.outputBackMimeType = backOut.mimeType;
+    runtime.prints.outputBackDataUrl = `data:${backOut.mimeType};base64,${backOut.imageBase64}`;
+    runtime.prints.outputSideMimeType = sideOut.mimeType;
+    runtime.prints.outputSideDataUrl = `data:${sideOut.mimeType};base64,${sideOut.imageBase64}`;
     runtime.prints.timingsMs = ms;
   } catch (err: any) {
     runtime.prints.error = err?.message || String(err);
@@ -1549,19 +1643,39 @@ async function saveAllImages() {
 
 async function savePrintedGarment() {
   const runtime = activeRuntime.value;
-  if (!runtime.prints.outputDataUrl) {
-    runtime.prints.error = "Generate the printed garment first.";
+  if (!runtime.prints.outputFrontDataUrl || !runtime.prints.outputBackDataUrl || !runtime.prints.outputSideDataUrl) {
+    runtime.prints.error = "Generate the printed garments first.";
     return;
   }
   try {
     const ts = Date.now();
-    await saveImageToLibrary({
-      dataUrl: runtime.prints.outputDataUrl,
-      mimeType: runtime.prints.outputMimeType,
-      title: `Printed garment — ${activeStoryboard.value.title}`,
-      kind: "prints",
-      fileName: `printed-garment-${ts}.${mimeToExtension(runtime.prints.outputMimeType)}`,
-    });
+    await Promise.all([
+      saveImageToLibrary({
+        dataUrl: runtime.prints.outputFrontDataUrl,
+        mimeType: runtime.prints.outputFrontMimeType,
+        title: `Printed garment (front) — ${activeStoryboard.value.title}`,
+        kind: "prints",
+        fileName: `printed-garment-front-${ts}.${mimeToExtension(runtime.prints.outputFrontMimeType)}`,
+        notify: false,
+      }),
+      saveImageToLibrary({
+        dataUrl: runtime.prints.outputBackDataUrl,
+        mimeType: runtime.prints.outputBackMimeType,
+        title: `Printed garment (back) — ${activeStoryboard.value.title}`,
+        kind: "prints",
+        fileName: `printed-garment-back-${ts}.${mimeToExtension(runtime.prints.outputBackMimeType)}`,
+        notify: false,
+      }),
+      saveImageToLibrary({
+        dataUrl: runtime.prints.outputSideDataUrl,
+        mimeType: runtime.prints.outputSideMimeType,
+        title: `Printed garment (side) — ${activeStoryboard.value.title}`,
+        kind: "prints",
+        fileName: `printed-garment-side-${ts}.${mimeToExtension(runtime.prints.outputSideMimeType)}`,
+        notify: false,
+      }),
+    ]);
+    showSaveToast("Saved 3 printed garments.");
   } catch (err: any) {
     runtime.prints.error = err?.message || String(err);
   }
